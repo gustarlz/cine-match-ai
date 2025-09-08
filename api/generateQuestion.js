@@ -12,7 +12,7 @@ export default async function handler(req, res) {
   const { conversationHistory } = req.body;
 
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
 
     const prompt = `
         Você é um concierge de cinema IA chamado Cine-Match. Seu objetivo é descobrir o filme perfeito para o usuário fazendo perguntas criativas e pessoais.
