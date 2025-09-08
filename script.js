@@ -123,83 +123,61 @@ document.addEventListener('DOMContentLoaded', () => {
         showScreen(resultScreen);
     }
 
-    async function startRefinementChat() {
+   async function startRefinementChat() {
         showScreen(chatScreen);
-        showLoading(true);
-        conversationHistory = [];
+        conversationHistory = []; // Começa uma nova conversa de refinamento
         chatMessages.innerHTML = '';
         
-        // Pergunta inicial para o refinamento
-        addMessage(`Certo, o que você não gostou em "${currentRecommendation.title}"?`, "ai");
-        showLoading(false);
+        const firstQuestion = `Certo, o que você não gostou em "${currentRecommendation.title}"?`;
+        addMessage(firstQuestion, "ai");
+        
+        // Adiciona a primeira pergunta da IA ao histórico da conversa
+        conversationHistory.push({ role: 'model', parts: firstQuestion });
     }
+
     
     // ** A NOVA FUNÇÃO DE REFINAMENTO INTELIGENTE **
-    async function handleUserInput(text) {
+      async function handleUserInput(text) {
         if (!text.trim()) return;
 
         addMessage(text, "user");
         userInput.value = '';
-        suggestionsContainer.innerHTML = ''; // Limpa os botões de sugestão
+        suggestionsContainer.innerHTML = ''; // Limpa botões de sugestão
         showLoading(true);
 
-        // Pede a ANÁLISE da IA sobre o feedback
-        const aiAnalysis = await fetchFromAI(false, text);
+        // Adiciona a resposta do usuário ao histórico
+        conversationHistory.push({ role: 'user', parts: text });
 
-        if (aiAnalysis && aiAnalysis.type === 'refinement_analysis') {
-            const { avoid_keywords, prioritize_keywords } = aiAnalysis;
-            
-            // Pega a lista de recomendações que ainda temos...
-            let pool = [...recommendationPool];
+        // Envia o histórico COMPLETO para a IA decidir o que fazer
+        const aiResponse = await fetchFromAI();
 
-            // Pega as keywords de cada filme da nossa lista para poder comparar
-            const poolWithKeywordsPromises = pool.map(async movie => {
-                const keywords = await fetchMovieKeywords(movie.id);
-                movie.keywords = keywords.map(k => k.name); // Salva os nomes das keywords
-                return movie;
-            });
-            const poolWithKeywords = await Promise.all(poolWithKeywordsPromises);
-            
-            // REFINA a lista!
-            const refinedPool = poolWithKeywords.filter(movie => {
-                // Se o filme tiver alguma keyword para evitar, ele é removido.
-                for (const keywordToAvoid of avoid_keywords) {
-                    if (movie.keywords.includes(keywordToAvoid)) {
-                        return false; 
-                    }
+        if (aiResponse) {
+            if (aiResponse.type === 'recommendation') {
+                // A IA deu um novo filme, vamos buscá-lo e exibir.
+                const newMovie = await fetchMovieDetailsByTitle(aiResponse.title);
+                if (newMovie) {
+                    await displayFinalResult(newMovie);
+                } else {
+                    addMessage(`A IA sugeriu "${aiResponse.title}", mas não o encontrei. Tente o botão 'Outra Sugestão'.`, 'ai');
                 }
-                return true;
-            });
-
-            // Reordena a lista para dar prioridade
-            refinedPool.sort((a, b) => {
-                let scoreA = 0;
-                let scoreB = 0;
-                
-                prioritize_keywords.forEach(keyword => {
-                    if (a.keywords.includes(keyword)) scoreA++;
-                    if (b.keywords.includes(keyword)) scoreB++;
-                });
-
-                return scoreB - scoreA; // Filmes com mais keywords prioritárias vêm primeiro
-            });
-            
-            recommendationPool = refinedPool; // Atualiza nossa lista de recomendações
-            await displayNextRecommendation();
-
+            } else if (aiResponse.type === 'clarifying_question') {
+                // A IA fez outra pergunta, vamos exibi-la.
+                conversationHistory.push({ role: 'model', parts: aiResponse.text });
+                displayAIResponse(aiResponse);
+            }
         } else {
-            showLoading(false);
-            addMessage("Não consegui refinar a busca com base nisso. Que tal tentar o botão 'Outra Sugestão'?", 'ai');
+             addMessage("Não consegui refinar a busca com base nisso. Que tal tentar o botão 'Outra Sugestão'?", 'ai');
         }
+
+        showLoading(false);
     }
 
-    async function fetchFromAI(isInitial = true, feedback = null) {
+        // Cole esta função no lugar da sua `fetchFromAI` antiga
+    async function fetchFromAI() {
         try {
-           
             const payload = { 
                 userProfile,
-                rejectedMovie: currentRecommendation, // removemos o isInitial
-                feedback: feedback 
+                conversationHistory, // A única coisa que importa agora é a conversa toda
             };
             const response = await fetch('/api/generateQuestion', {
                 method: 'POST',

@@ -9,46 +9,30 @@ module.exports = async (req, res) => {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  const { userProfile, rejectedMovie, feedback } = req.body;
+  const { userProfile, conversationHistory } = req.body;
 
-  if (!userProfile) {
-    return res.status(400).json({ error: "O perfil do usuário é necessário." });
-  }
+  // ESTE É O NOVO PROMPT INTELIGENTE E UNIFICADO
+  const prompt = `
+    Você é um especialista em cinema da Cine-Match. Sua missão é ajudar um usuário a encontrar um filme.
 
-  let prompt;
+    **PERFIL DO USUÁRIO:**
+    - Gêneros Favoritos (IDs): ${JSON.stringify(userProfile.genres)}
+    - Top 3 Filmes: ${JSON.stringify(userProfile.topMovies.map(m => m.title))}
 
-  // LÓGICA DE DECISÃO: Verificamos se há 'feedback' para saber se é um refinamento
-  if (feedback && rejectedMovie) {
-    // PERSONALIDADE 2: O REFINADOR
-    // Esta parte só é executada quando o usuário dá feedback sobre um filme.
-    prompt = `
-      Você é um especialista em cinema analisando o feedback de um usuário.
-      O perfil do usuário é:
-      - Top Filmes: ${JSON.stringify(userProfile.topMovies.map(m => m.title))}
-      - Gêneros Favoritos (IDs): ${JSON.stringify(userProfile.genres)}
+    **HISTÓRICO DA CONVERSA ATÉ AGORA:**
+    ${JSON.stringify(conversationHistory)}
 
-      A última recomendação foi "${rejectedMovie.title}".
-      O feedback do usuário foi: "${feedback}".
+    **SUA TAREFA:**
+    Analise a ÚLTIMA MENSAGEM DO USUÁRIO no histórico e decida sua próxima ação.
 
-      Sua tarefa é analisar o feedback e o perfil original para sugerir UM ÚNICO novo título de filme que se ajuste melhor.
-      
-      Responda APENAS com um objeto JSON no formato:
-      { "type": "refined_recommendation", "title": "Nome do Novo Filme" }
-    `;
-  } else {
-    // PERSONALIDADE 1: O GERADOR DE LISTA INICIAL
-    // Esta parte só é executada na primeira vez.
-    prompt = `
-      Você é um especialista em cinema. Analise o seguinte perfil de gosto de um usuário:
-      - Gêneros Favoritos (IDs): ${JSON.stringify(userProfile.genres)}
-      - Top 3 Filmes: ${JSON.stringify(userProfile.topMovies.map(m => m.title))}
+    1.  **SE a última mensagem do usuário der uma pista clara sobre o que ele quer ou não quer** (ex: "foi muito lento", "queria algo mais divertido", "não gosto de drama"), sua tarefa é sugerir UM ÚNICO novo título de filme que leve esse feedback em consideração.
+        Neste caso, responda com o JSON: { "type": "recommendation", "title": "Nome do Novo Filme Sugerido" }
 
-      Sua tarefa é gerar uma lista de 5 títulos de filmes que seriam uma combinação perfeita para este usuário. Pense nos temas, no ritmo e no estilo dos filmes favoritos dele.
-      
-      Responda APENAS com um objeto JSON no formato:
-      { "type": "recommendation_list", "titles": ["Título do Filme 1", "Título do Filme 2", "Título do Filme 3", "Título do Filme 4", "Título do Filme 5"] }
-    `;
-  }
+    2.  **SE a última mensagem do usuário for vaga, confusa ou fizer uma pergunta** (ex: "não sei", "não gostei da vibe", "o que você sugere?"), sua tarefa é fazer uma PERGUNTA CLARIFICADORA para entender melhor o gosto dele.
+        Neste caso, responda com o JSON: { "type": "clarifying_question", "text": "Sua pergunta aqui...", "suggestions": ["Sugestão 1", "Sugestão 2"] }
+
+    **Responda APENAS com o objeto JSON apropriado para a sua decisão.** Não inclua nenhum outro texto.
+  `;
 
   const messages = [{ role: 'system', content: prompt }];
 
