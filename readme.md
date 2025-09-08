@@ -8,7 +8,7 @@
 <br>
  
 <p align="center">
- (demo.gif)
+ (https://imgur.com/a/gWmmwze)
 
 </p>
 
