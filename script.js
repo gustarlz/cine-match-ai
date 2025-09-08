@@ -1,3 +1,4 @@
+// A linha mais importante: Garante que NENHUM código rode antes do HTML estar 100% pronto.
 document.addEventListener('DOMContentLoaded', () => {
 
     // =========================================================
@@ -253,7 +254,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // =========================================================
-    // INICIALIZAÇÃO E EVENT LISTENERS - VERSÃO CORRIGIDA
+    // INICIALIZAÇÃO E EVENT LISTENERS - AQUI ESTÁ A CORREÇÃO
     // =========================================================
     startBtn.addEventListener('click', () => {
         showScreen(genreScreen);
@@ -280,4 +281,4 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-});
+}); // Fim do 'DOMContentLoaded'
