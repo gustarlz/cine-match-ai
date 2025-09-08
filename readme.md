@@ -24,7 +24,7 @@
 
 ---
 
-### ▼ Versão em Português (Brasil)
+### ▼ Português (Brasil)
 
 #### **Sobre o Projeto**
 
@@ -95,7 +95,7 @@ O fluxo do usuário foi projetado para ser simples e intuitivo:
 ---
 
 <details open>
-<summary>▼ EN English Version</summary>
+<summary>▼ EN English </summary>
 
 ### **About The Project**
 
