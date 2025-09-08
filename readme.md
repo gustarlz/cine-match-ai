@@ -8,7 +8,8 @@
 <br>
  
 <p align="center">
-![Demo](https://i.imgur.com/LQE6oFD.gif)
+  <img src="https://i.imgur.com/LQE6oFD.gif" alt="Demo">
+</p>
 
 
 </p>
