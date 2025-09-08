@@ -54,7 +54,7 @@ module.exports = async (req, res) => {
     const messages = [{ role: 'system', content: prompt }];
 
     const completion = await groq.chat.completions.create({
-      model: "llama3-70b-8192",
+      model: "llama-3.1-8b-instant",
       messages: messages,
       response_format: { type: "json_object" },
     });
