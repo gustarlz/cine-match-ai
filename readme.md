@@ -56,16 +56,7 @@ O fluxo do usuário foi projetado para ser simples e intuitivo:
 | **Groq API** | Fornece o modelo de linguagem (LLM) para gerar as recomendações com base nos prompts. |
 | **TMDB API** | Fonte de todos os dados dos filmes, incluindo detalhes, imagens e disponibilidade de streaming. |
 
-#### **Estrutura do Projeto**
 
-/
-├── api/
-│ └── generateQuestion.js # Função Serverless que se comunica com a API da Groq
-├── index.html # Estrutura principal da página
-├── script.js # Lógica do front-end e chamadas de API
-├── style.css # Estilização da aplicação
-├── package.json # Dependências do projeto (Groq SDK)
-└── README.md # Este arquivo
 
 code
 Code
@@ -109,7 +100,7 @@ IGNORE_WHEN_COPYING_END
 
 ---
 
-<details>
+<details open>
 <summary>▼ EN English Version</summary>
 
 ### **About The Project**
