@@ -9,36 +9,48 @@ module.exports = async (req, res) => {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  const { userProfile, conversationHistory } = req.body;
+  const { userProfile, feedback, rejectedMovieTitle } = req.body;
 
-  // ESTE É O NOVO PROMPT INTELIGENTE E UNIFICADO
-  const prompt = `
-    Você é um especialista em cinema da Cine-Match. Sua missão é ajudar um usuário a encontrar um filme.
+  if (!userProfile) {
+    return res.status(400).json({ error: "O perfil do usuário é necessário." });
+  }
 
-    **PERFIL DO USUÁRIO:**
-    - Gêneros Favoritos (IDs): ${JSON.stringify(userProfile.genres)}
-    - Top 3 Filmes: ${JSON.stringify(userProfile.topMovies.map(m => m.title))}
+  let prompt;
 
-    **HISTÓRICO DA CONVERSA ATÉ AGORA:**
-    ${JSON.stringify(conversationHistory)}
+  if (feedback && rejectedMovieTitle) {
+    // LÓGICA DE REFINAMENTO (quando há feedback)
+    prompt = `
+      Você é um especialista em cinema. O perfil do usuário é:
+      - Gêneros Favoritos (IDs): ${JSON.stringify(userProfile.genres)}
+      - Top Filmes: ${JSON.stringify(userProfile.topMovies.map(m => m.title))}
 
-    **SUA TAREFA:**
-    Analise a ÚLTIMA MENSAGEM DO USUÁRIO no histórico e decida sua próxima ação.
+      A última recomendação foi "${rejectedMovieTitle}".
+      O feedback do usuário sobre este filme foi: "${feedback}".
 
-    1.  **SE a última mensagem do usuário der uma pista clara sobre o que ele quer ou não quer** (ex: "foi muito lento", "queria algo mais divertido", "não gosto de drama"), sua tarefa é sugerir UM ÚNICO novo título de filme que leve esse feedback em consideração.
-        Neste caso, responda com o JSON: { "type": "recommendation", "title": "Nome do Novo Filme Sugerido" }
+      Sua tarefa é analisar o feedback e sugerir UM ÚNICO novo título de filme que se ajuste melhor.
+      
+      Responda APENAS com um objeto JSON no formato:
+      { "type": "refined_recommendation", "title": "Nome do Novo Filme" }
+    `;
+  } else {
+    // LÓGICA INICIAL (primeira chamada)
+    prompt = `
+      Você é um especialista em cinema. Analise o seguinte perfil de gosto:
+      - Gêneros Favoritos (IDs): ${JSON.stringify(userProfile.genres)}
+      - Top 3 Filmes: ${JSON.stringify(userProfile.topMovies.map(m => m.title))}
 
-    2.  **SE a última mensagem do usuário for vaga, confusa ou fizer uma pergunta** (ex: "não sei", "não gostei da vibe", "o que você sugere?"), sua tarefa é fazer uma PERGUNTA CLARIFICADORA para entender melhor o gosto dele.
-        Neste caso, responda com o JSON: { "type": "clarifying_question", "text": "Sua pergunta aqui...", "suggestions": ["Sugestão 1", "Sugestão 2"] }
-
-    **Responda APENAS com o objeto JSON apropriado para a sua decisão.** Não inclua nenhum outro texto.
-  `;
+      Sua tarefa é gerar uma lista de 5 títulos de filmes que seriam uma combinação perfeita para este usuário.
+      
+      Responda APENAS com um objeto JSON no formato:
+      { "type": "recommendation_list", "titles": ["Título do Filme 1", "Título do Filme 2", "Filme 3", "Filme 4", "Filme 5"] }
+    `;
+  }
 
   const messages = [{ role: 'system', content: prompt }];
 
   try {
     const completion = await groq.chat.completions.create({
-      model: "llama-3.1-8b-instant",
+      model: "llama-3.1-8b-instant  ",
       messages: messages,
       response_format: { type: "json_object" },
     });
