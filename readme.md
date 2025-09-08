@@ -6,9 +6,9 @@
 ![Node.js](https://img.shields.io/badge/Node.js-Serverless-green?logo=nodedotjs)
 
 <br>
-
+ 
 <p align="center">
-  <img src="https://imgur.com/a/gWmmwze" alt="Demonstração do Cine-Match Pro">
+ (demo.gif)
 
 </p>
 
