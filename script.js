@@ -225,7 +225,6 @@ document.addEventListener('DOMContentLoaded', () => {
         resultScreen.appendChild(clone);
         showScreen(resultScreen);
 
-        // A CORREÇÃO ESTÁ AQUI: precisamos garantir que o botão existe ANTES de adicionar o listener
         const generateAnotherBtn = document.getElementById('generate-another-btn');
         if (generateAnotherBtn) {
             generateAnotherBtn.addEventListener('click', displayNextRecommendation);
@@ -241,15 +240,12 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const response = await fetch(`https://api.themoviedb.org/3/movie/${movieId}/videos?api_key=${TMDB_API_KEY}`);
             const data = await response.json();
-
             const trailers = data.results.filter(video => video.type === 'Trailer' && video.site === 'YouTube');
             if (trailers.length === 0) return null;
-
             let bestTrailer = trailers.find(t => t.official && t.iso_639_1 === 'en') || 
                               trailers.find(t => t.official) || 
                               trailers.find(t => t.iso_639_1 === 'en') || 
                               trailers[0];
-
             return `https://www.youtube.com/embed/${bestTrailer.key}`;
         } catch (error) {
             console.error("Erro ao buscar trailer:", error);
@@ -260,39 +256,44 @@ document.addEventListener('DOMContentLoaded', () => {
     // =========================================================
     // INICIALIZAÇÃO E EVENT LISTENERS - AQUI ESTÁ A CORREÇÃO
     // =========================================================
-    if (startBtn) {
-        startBtn.addEventListener('click', () => {
-            showScreen(genreScreen);
-            initializeGenreScreen();
-        });
+    function bindEventListeners() {
+        if (startBtn) {
+            startBtn.addEventListener('click', () => {
+                showScreen(genreScreen);
+                initializeGenreScreen();
+            });
+        }
+
+        if (genresNextBtn) {
+            genresNextBtn.addEventListener('click', () => {
+                showScreen(profilerScreen);
+            });
+        }
+        
+        if (profilerNextBtn) {
+            profilerNextBtn.addEventListener('click', generateAccurateRecommendations);
+        }
+
+        if (movieSearchInput) {
+            movieSearchInput.addEventListener('keyup', (event) => {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => {
+                    searchMovies(event.target.value);
+                }, 300);
+            });
+        }
+        
+        if (selectedMoviesContainer) {
+            selectedMoviesContainer.addEventListener('click', (event) => {
+                if (event.target.classList.contains('remove-movie')) {
+                    const movieId = parseInt(event.target.dataset.movieId);
+                    removeMovie(movieId);
+                }
+            });
+        }
     }
 
-    if (genresNextBtn) {
-        genresNextBtn.addEventListener('click', () => {
-            showScreen(profilerScreen);
-        });
-    }
-    
-    if (profilerNextBtn) {
-        profilerNextBtn.addEventListener('click', generateAccurateRecommendations);
-    }
-
-    if (movieSearchInput) {
-        movieSearchInput.addEventListener('keyup', (event) => {
-            clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(() => {
-                searchMovies(event.target.value);
-            }, 300);
-        });
-    }
-    
-    if (selectedMoviesContainer) {
-        selectedMoviesContainer.addEventListener('click', (event) => {
-            if (event.target.classList.contains('remove-movie')) {
-                const movieId = parseInt(event.target.dataset.movieId);
-                removeMovie(movieId);
-            }
-        });
-    }
+    // Chama a função para "ligar" todos os botões assim que o script é lido.
+    bindEventListeners();
 
 }); // Fim do 'DOMContentLoaded'
