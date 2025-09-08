@@ -1,56 +1,45 @@
-// A linha mais importante: Garante que NENHUM código rode antes do HTML estar 100% pronto.
 document.addEventListener('DOMContentLoaded', () => {
 
-    // =========================================================
-    // CONFIGURAÇÕES E CHAVES DE API
-    // =========================================================
     const TMDB_API_KEY = '2b27ba02c4646af199efd3e9f6f37dd7';
 
-    // =========================================================
-    // SELETORES DE ELEMENTOS DO DOM
-    // =========================================================
+    // Seletores de Elementos do DOM
     const welcomeScreen = document.getElementById('welcome-screen');
     const genreScreen = document.getElementById('genre-screen');
     const profilerScreen = document.getElementById('profiler-screen');
     const resultScreen = document.getElementById('result-screen');
-    
     const startBtn = document.getElementById('start-btn');
     const genresNextBtn = document.getElementById('genres-next-btn');
     const profilerNextBtn = document.getElementById('profiler-next-btn');
-    
     const genreGrid = document.getElementById('genre-grid');
     const movieSearchInput = document.getElementById('movie-search-input');
     const searchResultsContainer = document.getElementById('search-results');
     const selectedMoviesContainer = document.getElementById('selected-movies');
-    
-    const loadingOverlay = document.getElementById('loading-overlay');
     const resultTemplate = document.getElementById('result-template');
 
-    // =========================================================
-    // ESTADO DA APLICAÇÃO
-    // =========================================================
-    let userProfile = {
-        genres: [],
-        topMovies: [],
-    };
+    // Estado da Aplicação
+    let userProfile = { genres: [], topMovies: [] };
     let recommendationPool = [];
     let debounceTimer;
 
     // =========================================================
-    // FUNÇÕES DE CONTROLE GERAL
+    // A CORREÇÃO ESTÁ AQUI: Função showLoading Robusta
     // =========================================================
+    function showLoading(show) {
+        const loadingOverlay = document.getElementById('loading-overlay');
+        if (loadingOverlay) { // Verifica se o elemento foi encontrado ANTES de tentar usá-lo
+            loadingOverlay.classList.toggle('visible', show);
+        } else {
+            console.error("ERRO CRÍTICO: Elemento 'loading-overlay' não encontrado no HTML.");
+        }
+    }
+
     function showScreen(screen) {
         document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
         screen.classList.add('active');
     }
-
-    function showLoading(show) {
-        loadingOverlay.classList.toggle('visible', show);
-    }
-
-    // =========================================================
-    // ETAPA 1: LÓGICA DA TELA DE GÊNEROS
-    // =========================================================
+    
+    // ... O RESTO DO CÓDIGO PERMANECE IGUAL ...
+    
     function initializeGenreScreen() {
         const genres = [
             {id: 28, name: 'Ação'}, {id: 12, name: 'Aventura'},
@@ -82,9 +71,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // =========================================================
-    // ETAPA 2: LÓGICA DO ANALISADOR DE GOSTO (AUTOCOMPLETE)
-    // =========================================================
     async function searchMovies(query) {
         if (query.length < 3) {
             searchResultsContainer.innerHTML = '';
@@ -147,9 +133,6 @@ document.addEventListener('DOMContentLoaded', () => {
         movieSearchInput.placeholder = userProfile.topMovies.length >= 3 ? 'Sua lista está completa!' : 'Continue digitando...';
     }
 
-    // =========================================================
-    // ETAPA FINAL: LÓGICA DE RECOMENDAÇÃO DE ALTA PRECISÃO
-    // =========================================================
     async function generateAccurateRecommendations() {
         showLoading(true);
         const movieIds = userProfile.topMovies.map(m => m.id);
@@ -196,12 +179,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     async function displayNextRecommendation() {
+        showLoading(true); // Mostrar loading entre as recomendações
         if (recommendationPool.length === 0) {
             const btn = document.getElementById('generate-another-btn');
             if(btn) {
                 btn.textContent = "Fim das sugestões!";
                 btn.disabled = true;
             }
+            showLoading(false);
             return;
         }
 
@@ -223,12 +208,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         resultScreen.innerHTML = '';
         resultScreen.appendChild(clone);
-        showScreen(resultScreen);
-
+        
         const generateAnotherBtn = document.getElementById('generate-another-btn');
         if (generateAnotherBtn) {
             generateAnotherBtn.addEventListener('click', displayNextRecommendation);
         }
+        
+        showScreen(resultScreen);
+        showLoading(false);
     }
     
     function displayError(message) {
@@ -253,9 +240,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // =========================================================
-    // INICIALIZAÇÃO E EVENT LISTENERS - AQUI ESTÁ A CORREÇÃO
-    // =========================================================
     function bindEventListeners() {
         if (startBtn) {
             startBtn.addEventListener('click', () => {
@@ -263,17 +247,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 initializeGenreScreen();
             });
         }
-
         if (genresNextBtn) {
             genresNextBtn.addEventListener('click', () => {
                 showScreen(profilerScreen);
             });
         }
-        
         if (profilerNextBtn) {
             profilerNextBtn.addEventListener('click', generateAccurateRecommendations);
         }
-
         if (movieSearchInput) {
             movieSearchInput.addEventListener('keyup', (event) => {
                 clearTimeout(debounceTimer);
@@ -282,7 +263,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }, 300);
             });
         }
-        
         if (selectedMoviesContainer) {
             selectedMoviesContainer.addEventListener('click', (event) => {
                 if (event.target.classList.contains('remove-movie')) {
@@ -293,7 +273,5 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Chama a função para "ligar" todos os botões assim que o script é lido.
     bindEventListeners();
-
-}); // Fim do 'DOMContentLoaded'
+});
