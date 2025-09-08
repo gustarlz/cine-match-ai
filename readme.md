@@ -8,8 +8,8 @@
 <br>
 
 <p align="center">
-  <img src="https://imgur.com/a/gWmmwze" alt="Demonstração do Cine-Match Pro" width="800"/>
-  <!-- Sugestão: Grave um GIF curto do fluxo e substitua a imagem acima! -->
+  <img src="https://imgur.com/a/gWmmwze" alt="Demonstração do Cine-Match Pro">
+
 </p>
 
 <h2 align="center">
