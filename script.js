@@ -167,25 +167,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            // Filtrar duplicados e filmes que o usuário já selecionou
             const uniqueIds = new Set();
             const uniquePool = combinedPool.filter(movie => {
-                if (uniqueIds.has(movie.id) || movieIds.includes(movie.id)) {
-                    return false;
-                }
+                if (uniqueIds.has(movie.id) || movieIds.includes(movie.id)) return false;
                 uniqueIds.add(movie.id);
                 return true;
             });
             
-            // Filtrar pelo gênero selecionado pelo usuário
             const finalPool = uniquePool.filter(movie => 
                 movie.genre_ids.some(genreId => userProfile.genres.includes(genreId))
             );
 
-            recommendationPool = finalPool; // Armazenar a piscina de recomendações
+            recommendationPool = finalPool.sort((a, b) => b.popularity - a.popularity); // Ordenar por popularidade
 
             if (recommendationPool.length > 0) {
-                displayNextRecommendation();
+                await displayNextRecommendation();
             } else {
                 displayError("Não encontramos recomendações com essa combinação. Tente com outros filmes ou gêneros!");
             }
@@ -202,13 +198,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (recommendationPool.length === 0) {
             const btn = document.getElementById('generate-another-btn');
             if(btn) {
-                btn.textContent = "Não há mais sugestões!";
+                btn.textContent = "Fim das sugestões!";
                 btn.disabled = true;
             }
             return;
         }
 
-        const movie = recommendationPool.shift(); // Pega o primeiro e remove da lista
+        const movie = recommendationPool.shift();
         const trailerUrl = await fetchMovieTrailer(movie.id);
         
         const clone = resultTemplate.content.cloneNode(true);
@@ -217,18 +213,17 @@ document.addEventListener('DOMContentLoaded', () => {
         clone.querySelector('img').src = movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : 'https://via.placeholder.com/500x750?text=Poster+Indisponível';
         clone.querySelector('img').alt = `Pôster de ${movie.title}`;
         
-        const trailerContainer = clone.getElementById('trailer-container');
+        const trailerContainer = clone.querySelector('#trailer-container');
         if (trailerUrl) {
             trailerContainer.innerHTML = `<iframe src="${trailerUrl}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
         } else {
-            trailerContainer.textContent = 'Trailer não disponível.';
+            trailerContainer.innerHTML = '<p>Trailer não disponível.</p>';
         }
 
-        resultScreen.innerHTML = ''; // Limpa a tela antes de adicionar o novo resultado
+        resultScreen.innerHTML = '';
         resultScreen.appendChild(clone);
         showScreen(resultScreen);
 
-        // Adiciona o listener para o novo botão "Gerar Outra"
         document.getElementById('generate-another-btn').addEventListener('click', displayNextRecommendation);
     }
     
@@ -239,10 +234,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function fetchMovieTrailer(movieId) {
         try {
-            const response = await fetch(`https://api.themoviedb.org/3/movie/${movieId}/videos?api_key=${TMDB_API_KEY}&language=pt-BR`);
+            // *** MUDANÇA IMPORTANTE AQUI: Removemos o &language=pt-BR ***
+            const response = await fetch(`https://api.themoviedb.org/3/movie/${movieId}/videos?api_key=${TMDB_API_KEY}`);
             const data = await response.json();
-            const trailer = data.results.find(video => video.type === 'Trailer' && video.site === 'YouTube');
-            return trailer ? `https://www.youtube.com/embed/${trailer.key}` : null;
+
+            // Lógica melhorada para encontrar o melhor trailer
+            const trailers = data.results.filter(video => video.type === 'Trailer' && video.site === 'YouTube');
+            if (trailers.length === 0) return null;
+
+            // 1. Tenta encontrar um trailer oficial em inglês
+            let bestTrailer = trailers.find(t => t.official && t.iso_639_1 === 'en');
+            // 2. Se não achar, tenta qualquer trailer oficial
+            if (!bestTrailer) bestTrailer = trailers.find(t => t.official);
+            // 3. Se não achar, tenta qualquer trailer em inglês
+            if (!bestTrailer) bestTrailer = trailers.find(t => t.iso_639_1 === 'en');
+            // 4. Se não achar, pega o primeiro trailer da lista
+            if (!bestTrailer) bestTrailer = trailers[0];
+
+            return `https://www.youtube.com/embed/${bestTrailer.key}`;
         } catch (error) {
             console.error("Erro ao buscar trailer:", error);
             return null;
@@ -252,29 +261,32 @@ document.addEventListener('DOMContentLoaded', () => {
     // =========================================================
     // INICIALIZAÇÃO E EVENT LISTENERS
     // =========================================================
-    startBtn.addEventListener('click', () => {
-        showScreen(genreScreen);
-        initializeGenreScreen();
-    });
+    function initialize() {
+        startBtn.addEventListener('click', () => {
+            showScreen(genreScreen);
+            initializeGenreScreen();
+        });
 
-    genresNextBtn.addEventListener('click', () => {
-        showScreen(profilerScreen);
-    });
-    
-    profilerNextBtn.addEventListener('click', generateAccurateRecommendations);
+        genresNextBtn.addEventListener('click', () => {
+            showScreen(profilerScreen);
+        });
+        
+        profilerNextBtn.addEventListener('click', generateAccurateRecommendations);
 
-    movieSearchInput.addEventListener('keyup', (event) => {
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => {
-            searchMovies(event.target.value);
-        }, 300); // Espera 300ms (mais rápido)
-    });
-    
-    selectedMoviesContainer.addEventListener('click', (event) => {
-        if (event.target.classList.contains('remove-movie')) {
-            const movieId = parseInt(event.target.dataset.movieId);
-            removeMovie(movieId);
-        }
-    });
+        movieSearchInput.addEventListener('keyup', (event) => {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                searchMovies(event.target.value);
+            }, 300);
+        });
+        
+        selectedMoviesContainer.addEventListener('click', (event) => {
+            if (event.target.classList.contains('remove-movie')) {
+                const movieId = parseInt(event.target.dataset.movieId);
+                removeMovie(movieId);
+            }
+        });
+    }
 
+    initialize(); // Inicia a aplicação
 });
