@@ -24,7 +24,7 @@
 
 ---
 
-### ▼ Português (Brasil)
+### ▼ Português
 
 #### **Sobre o Projeto**
 
