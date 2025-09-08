@@ -18,7 +18,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const loadingOverlay = document.getElementById('loading-overlay');
     const resultTemplate = document.getElementById('result-template');
     const chatMessages = document.getElementById('chat-messages');
-    const suggestionsContainer = document.getElementById('suggestions-container');
     const userInput = document.getElementById('user-input');
     const sendBtn = document.getElementById('send-btn');
 
@@ -26,7 +25,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let userProfile = { genres: [], topMovies: [] };
     let recommendationPool = [];
     let currentRecommendation = null;
-    let conversationHistory = [];
     let debounceTimer;
 
     function showScreen(screen) {
@@ -46,7 +44,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function removeMovie(movieId){userProfile.topMovies=userProfile.topMovies.filter(m=>m.id!==movieId),renderSelectedMovies()}
     function renderSelectedMovies(){selectedMoviesContainer.innerHTML=userProfile.topMovies.map(movie=>`<div class="movie-pill" data-movie-id="${movie.id}">${movie.title}<span class="remove-movie" data-movie-id="${movie.id}"> &times;</span></div>`).join(""),profilerNextBtn.disabled=0===userProfile.topMovies.length,movieSearchInput.disabled=userProfile.topMovies.length>=3,movieSearchInput.placeholder=userProfile.topMovies.length>=3?"Sua lista está completa!":"Continue digitando..."}
 
-    // A CORREÇÃO PRINCIPAL ESTÁ AQUI
     async function fetchFromAI(payload) {
         try {
             const response = await fetch('/api/generateQuestion', {
@@ -55,7 +52,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify(payload),
             });
             if (!response.ok) {
-                // Isso nos dará mais detalhes sobre o erro 500
                 const errorBody = await response.text();
                 console.error("Erro do Servidor (corpo):", errorBody);
                 throw new Error('A resposta da rede não foi OK');
@@ -63,75 +59,76 @@ document.addEventListener('DOMContentLoaded', () => {
             return await response.json();
         } catch (error) {
             console.error("Erro ao buscar da IA:", error);
-            throw error; // Re-lança o erro para a função que chamou
+            throw error;
         }
     }
 
     async function generateInitialRecommendations() {
         showLoading(true);
         try {
-            // Envia um payload limpo, apenas com o perfil do usuário
-            const payload = { userProfile, conversationHistory: [], rejectedMovie: null, feedback: null };
+            const payload = { userProfile };
             const aiResponse = await fetchFromAI(payload);
-
             if (aiResponse && aiResponse.type === 'recommendation_list') {
-                const movieDetailPromises = aiResponse.titles.map(title => fetchMovieDetailsByTitle(title));
+                const movieDetailPromises = aiResponse.titles.map(fetchMovieDetailsByTitle);
                 const movieDetails = await Promise.all(movieDetailPromises);
-                recommendationPool = movieDetails.filter(movie => movie !== null);
-
+                recommendationPool = movieDetails.filter(Boolean);
                 if (recommendationPool.length > 0) {
                     await displayNextRecommendation();
                 } else {
-                    throw new Error("A IA não retornou uma lista de recomendações válida.");
+                    throw new Error("A IA não retornou filmes válidos.");
                 }
             } else {
                 throw new Error("A IA não retornou uma lista de recomendações válida.");
             }
         } catch (error) {
-            console.error("Erro ao gerar recomendações iniciais:", error);
+            console.error(error);
             displayError("Ocorreu um erro ao conversar com a IA. Tente novamente.");
         } finally {
             showLoading(false);
         }
     }
-
+    
     async function handleUserInput(text) {
         if (!text.trim()) return;
-
         addMessage(text, "user");
         userInput.value = '';
         showLoading(true);
 
-        conversationHistory.push({ role: 'user', parts: text });
-        
-        // Envia o payload completo para refinamento
-        const payload = { userProfile, conversationHistory, rejectedMovie: currentRecommendation, feedback: text };
-        const aiResponse = await fetchFromAI(payload);
+        try {
+            const payload = { userProfile, feedback: text, rejectedMovieTitle: currentRecommendation.title };
+            const aiResponse = await fetchFromAI(payload);
 
-        if (aiResponse && aiResponse.type === 'refined_recommendation') {
-            const newMovie = await fetchMovieDetailsByTitle(aiResponse.title);
-            if (newMovie) {
-                recommendationPool.unshift(newMovie); // Adiciona a nova sugestão no início da fila
-                await displayNextRecommendation();
+            if (aiResponse && aiResponse.type === 'refined_recommendation') {
+                const newMovie = await fetchMovieDetailsByTitle(aiResponse.title);
+                if (newMovie) {
+                    await displayFinalResult(newMovie);
+                } else {
+                    addMessage(`A IA sugeriu "${aiResponse.title}", mas não o encontrei. Tente o botão 'Outra Sugestão'.`, 'ai');
+                }
             } else {
-                addMessage(`A IA sugeriu "${aiResponse.title}", mas não o encontrei. Tente o botão 'Outra Sugestão'.`, 'ai');
-                showLoading(false);
+                 addMessage("Não consegui refinar a busca com base nisso. Tente o botão 'Outra Sugestão'.", 'ai');
             }
-        } else {
-            addMessage("Não consegui pensar em uma nova sugestão com base nisso. Você pode tentar o botão 'Outra Sugestão'.", 'ai');
+        } catch(error) {
+            addMessage("Ocorreu um erro ao refinar a sugestão. Tente novamente.", 'ai');
+        } finally {
             showLoading(false);
         }
     }
-    
-    // As funções de exibição não mudam, mas estão aqui para garantir a integridade do arquivo
+
     async function displayNextRecommendation() { if (recommendationPool.length === 0) { const btn = document.getElementById('generate-another-btn'); if (btn) { btn.textContent = "Fim das sugestões!"; btn.disabled = true; } return; } currentRecommendation = recommendationPool.shift(); await displayFinalResult(currentRecommendation); }
     async function displayFinalResult(movie) { showLoading(true); currentRecommendation = movie; const [trailerUrl, providers] = await Promise.all([fetchMovieTrailer(movie.id), fetchWatchProviders(movie.id)]); const clone = resultTemplate.content.cloneNode(true); clone.querySelector('h2').textContent = movie.title; clone.querySelector('p').textContent = movie.overview || 'Sinopse não disponível.'; clone.querySelector('img').src = movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : 'https://via.placeholder.com/500x750?text=Poster+Indisponível'; const trailerContainer = clone.querySelector('#trailer-container'); if (trailerUrl) trailerContainer.innerHTML = `<iframe src="${trailerUrl}" frameborder="0" allowfullscreen></iframe>`; else trailerContainer.innerHTML = '<p class="subtitle">Trailer não disponível.</p>'; const providersContainer = clone.querySelector('#watch-providers'); if (providers && providers.length > 0) { providersContainer.innerHTML = `<h3>Onde Assistir (Streaming):</h3><div class="provider-logos">${providers.map(p => `<div class="provider-logo" title="${p.provider_name}"><img src="https://image.tmdb.org/t/p/w92${p.logo_path}" alt="${p.provider_name}"></div>`).join('')}</div>`; } else { providersContainer.innerHTML = '<h3 class="subtitle">Não disponível em serviços de streaming no Brasil.</h3>'; } resultScreen.innerHTML = ''; resultScreen.appendChild(clone); showScreen(resultScreen); document.getElementById('generate-another-btn').addEventListener('click', displayNextRecommendation); document.getElementById('refine-btn').addEventListener('click', startRefinementChat); showLoading(false); }
     async function fetchWatchProviders(movieId) { try { const res = await fetch(`https://api.themoviedb.org/3/movie/${movieId}/watch/providers?api_key=${TMDB_API_KEY}`); const data = await res.json(); return data.results.BR?.flatrate || null; } catch { return null; } }
-    async function fetchMovieTrailer(movieId) { try { const res = await fetch(`https://api.themoviedb.org/3/movie/${movieId}/videos?api_key=${TMDB_API_KEY}`); const data = await res.json(); const trailers = data.results.filter(v => v.type === 'Trailer' && v.site === 'YouTube'); if (trailers.length === 0) return null; const best = trailers.find(t => t.official && t.iso_6duties_1 === 'en') || trailers.find(t => t.official) || trailers.find(t => t.iso_6duties_1 === 'en') || trailers[0]; return `https://www.youtube.com/embed/${best.key}`; } catch { return null; } }
+    async function fetchMovieTrailer(movieId) { try { const res = await fetch(`https://api.themoviedb.org/3/movie/${movieId}/videos?api_key=${TMDB_API_KEY}`); const data = await res.json(); const trailers = data.results.filter(v => v.type === 'Trailer' && v.site === 'YouTube'); if (trailers.length === 0) return null; const best = trailers.find(t => t.official && t.iso_639_1 === 'en') || trailers.find(t => t.official) || trailers.find(t => t.iso_639_1 === 'en') || trailers[0]; return `https://www.youtube.com/embed/${best.key}`; } catch { return null; } }
     async function fetchMovieDetailsByTitle(title) { try { const res = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&language=pt-BR&query=${encodeURIComponent(title)}`); const data = await res.json(); return data.results[0] || null; } catch { return null; } }
     function displayError(message) { resultScreen.innerHTML = `<div class="card"><h2>${message}</h2><button class="main-action-btn" onclick="location.reload()">Recomeçar</button></div>`; showScreen(resultScreen); }
-    async function startRefinementChat() { showScreen(chatScreen); conversationHistory = []; chatMessages.innerHTML = ''; const firstQuestion = `Certo, o que você não gostou em "${currentRecommendation.title}"?`; addMessage(firstQuestion, "ai"); conversationHistory.push({ role: 'model', parts: firstQuestion }); }
     function addMessage(text, sender) { const bubble = document.createElement('div'); bubble.classList.add('chat-bubble', `${sender}-message`); bubble.textContent = text; chatMessages.appendChild(bubble); chatMessages.scrollTop = chatMessages.scrollHeight; }
+    
+    function startRefinementChat() {
+        showScreen(chatScreen);
+        chatMessages.innerHTML = '';
+        const firstQuestion = `Certo, o que você não gostou em "${currentRecommendation.title}"?`;
+        addMessage(firstQuestion, "ai");
+    }
 
     function bindEventListeners() {
         if(startBtn) startBtn.addEventListener('click',()=>{showScreen(genreScreen);initializeGenreScreen()});
