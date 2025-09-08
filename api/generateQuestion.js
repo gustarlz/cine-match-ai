@@ -1,4 +1,4 @@
-// api/generateQuestion.js
+// Versão Final - Forçando o Redeploy
 
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
