@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cine-Match AI</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="background-gradient"></div>
+    <main id="app-container">
+        <!-- TELA INICIAL -->
+        <div id="welcome-screen" class="screen active">
+            <h1 class="logo">Cine-Match <sup>AI</sup></h1>
+            <p class="subtitle">Uma conversa com seu próximo filme favorito.</p>
+            <button id="start-btn" class="main-action-btn">Começar</button>
+        </div>
+
+        <!-- TELA DE CONVERSA -->
+        <div id="chat-screen" class="screen">
+            <div id="chat-messages"></div>
+            <div id="chat-input-area">
+                <div id="suggestions-container"></div>
+                <div class="input-wrapper">
+                    <input type="text" id="user-input" placeholder="Digite sua resposta aqui...">
+                    <button id="send-btn">Enviar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- TELA DE RESULTADO -->
+        <div id="result-screen" class="screen">
+            <!-- Conteúdo injetado pelo JS -->
+        </div>
+    </main>
+    <div id="loading-overlay">
+        <div class="spinner"></div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
