@@ -8,12 +8,12 @@
 <br>
 
 <p align="center">
-  <img src="https://i.imgur.com/YOUR_SCREENSHOT_URL.png" alt="Demonstração do Cine-Match Pro" width="800"/>
+  <img src="https://imgur.com/a/gWmmwze" alt="Demonstração do Cine-Match Pro" width="800"/>
   <!-- Sugestão: Grave um GIF curto do fluxo e substitua a imagem acima! -->
 </p>
 
 <h2 align="center">
-  <a href="https://cine-match-ai.vercel.app/"><strong>Acesse a demonstração ao vivo!</strong></a>
+  <a href="https://cine-match-o1oc3hawp-gustavo-rosas-projects-c2c1e6dc.vercel.app//"><strong>Acesse a demonstração ao vivo!</strong></a>
 </h2>
 
 <br>
