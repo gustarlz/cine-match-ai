@@ -32,7 +32,7 @@ body {
 }
 #app-container {
     width: 100%;
-    max-width: 900px; /* Aumentei um pouco para acomodar melhor */
+    max-width: 900px; 
     height: 90vh;
     max-height: 700px;
     background: var(--card-color);
@@ -167,8 +167,6 @@ body {
 .result-content { display: flex; gap: 40px; align-items: stretch; height: 100%; }
 .result-poster { flex-shrink: 0; }
 .result-poster img { width: 300px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); height: auto; max-height: 100%; object-fit: contain; }
-/* ** A CORREÇÃO PRINCIPAL DO LAYOUT ESTÁ AQUI ** */
-/* ** A CORREÇÃO PRINCIPAL DO LAYOUT ESTÁ AQUI ** */
 
 .result-details {
     display: flex;

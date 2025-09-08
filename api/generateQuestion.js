@@ -3,7 +3,7 @@ const Groq = require('groq-sdk');
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
 });
-/* ** A CORREÇÃO PRINCIPAL DO LAYOUT ESTÁ AQUI ** */
+
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
@@ -22,7 +22,7 @@ module.exports = async (req, res) => {
 
     let prompt;
 
-    // LÓGICA DE DECISÃO CLARA E SEGURA
+
     if (feedback && rejectedMovieTitle) {
       // LÓGICA DE REFINAMENTO (quando há feedback)
       prompt = `

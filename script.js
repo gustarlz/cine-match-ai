@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const userInput = document.getElementById('user-input');
     const sendBtn = document.getElementById('send-btn');
 
-    // Estado da Aplicação
+
     let userProfile = { genres: [], topMovies: [] };
     let recommendationPool = [];
     let currentRecommendation = null;
@@ -64,8 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    /* ** A CORREÇÃO PRINCIPAL DO LAYOUT ESTÁ AQUI ** */
-/* ** A CORREÇÃO PRINCIPAL DO LAYOUT ESTÁ AQUI ** */
+
 
     async function generateInitialRecommendations() {
         showLoading(true);
