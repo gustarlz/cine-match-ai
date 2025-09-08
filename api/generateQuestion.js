@@ -37,7 +37,7 @@ module.exports = async (req, res) => {
 
   try {
     const completion = await groq.chat.completions.create({
-      model: "llama-3.1-70b-versatile", // Um excelente modelo de código aberto e rápido
+      model: "llama-3.1-8b-instant", // Um excelente modelo de código aberto e rápido
       messages: messages,
       response_format: { type: "json_object" },
     });
