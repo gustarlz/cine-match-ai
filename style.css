@@ -1,119 +1,119 @@
-:root {
-    --primary-accent: #6a11cb;
-    --secondary-accent: #2575fc;
-    --background-color: #0c0a18;
-    --card-color: rgba(255, 255, 255, 0.05);
-    --text-color: #f0f0f0;
-    --text-color-secondary: #a0a0b0;
-}
+/* Adicione estas novas regras ao seu style.css existente */
 
-* { margin: 0; padding: 0; box-sizing: border-box; }
-
-body {
-    background-color: var(--background-color);
-    color: var(--text-color);
-    font-family: 'Inter', sans-serif;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
-    overflow: hidden;
-}
-
-.background-gradient {
-    position: fixed;
-    width: 100vw;
-    height: 100vh;
-    background: radial-gradient(circle at top left, var(--primary-accent), transparent 40%),
-                radial-gradient(circle at bottom right, var(--secondary-accent), transparent 40%);
-    opacity: 0.2;
-    animation: breath 15s ease-in-out infinite alternate;
-}
-
-@keyframes breath {
-    from { transform: scale(1); opacity: 0.1; }
-    to { transform: scale(1.2); opacity: 0.3; }
-}
-
-#app-container {
+/* TELA DE GÊNEROS */
+#genre-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 15px;
     width: 100%;
-    max-width: 800px;
-    height: 90vh;
-    max-height: 700px;
-    background: var(--card-color);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 20px;
-    backdrop-filter: blur(20px);
-    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    position: relative;
+    margin-bottom: 30px;
+    max-height: 400px;
+    overflow-y: auto;
+    padding: 5px;
 }
 
-.screen {
-    display: none;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    padding: 40px;
-    text-align: center;
-    width: 100%;
-    height: 100%;
-    animation: fadeIn 0.8s ease-in-out;
-}
-.screen.active { display: flex; }
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-/* Welcome Screen */
-.logo { font-size: 3.5em; font-weight: 900; }
-.logo sup { font-size: 0.4em; color: var(--secondary-accent); }
-.subtitle { color: var(--text-color-secondary); font-size: 1.2em; margin-top: 10px; }
-.main-action-btn {
-    margin-top: 40px;
-    background: linear-gradient(45deg, var(--primary-accent), var(--secondary-accent));
-    color: white;
-    border: none;
-    border-radius: 50px;
-    padding: 15px 40px;
-    font-size: 1.2em;
-    font-weight: 700;
+.genre-btn {
+    background-color: var(--card-color);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: var(--text-color-secondary);
+    padding: 12px;
+    border-radius: 10px;
     cursor: pointer;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    transition: all 0.2s ease;
+    font-weight: 700;
 }
-.main-action-btn:hover { transform: scale(1.05); box-shadow: 0 5px 20px rgba(0,0,0,0.2); }
 
-/* Chat Screen */
-#chat-screen { justify-content: flex-end; }
-#chat-messages { width: 100%; flex-grow: 1; overflow-y: auto; padding: 20px 0; display: flex; flex-direction: column; gap: 15px; }
-.chat-bubble { max-width: 75%; padding: 12px 18px; border-radius: 20px; line-height: 1.6; }
-.ai-message { background: #2a2a3a; border-bottom-left-radius: 5px; align-self: flex-start; }
-.user-message { background: var(--secondary-accent); border-bottom-right-radius: 5px; align-self: flex-end; color: white; }
+.genre-btn:hover {
+    border-color: var(--secondary-accent);
+    color: var(--text-color);
+}
 
-#chat-input-area { width: 100%; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); }
-#suggestions-container { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-bottom: 15px; }
-.suggestion-btn { background: none; border: 1px solid var(--text-color-secondary); color: var(--text-color-secondary); padding: 8px 15px; border-radius: 20px; cursor: pointer; transition: all 0.2s ease; }
-.suggestion-btn:hover { background: var(--text-color-secondary); color: var(--background-color); }
+.genre-btn.selected {
+    background-color: var(--secondary-accent);
+    border-color: var(--secondary-accent);
+    color: white;
+    transform: scale(1.05);
+}
 
-.input-wrapper { display: flex; gap: 10px; }
-#user-input { flex-grow: 1; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 12px; font-size: 1em; color: var(--text-color); }
-#send-btn { background: var(--secondary-accent); border: none; padding: 0 20px; border-radius: 10px; cursor: pointer; color: white; font-weight: 700; }
+/* TELA DO ANALISADOR DE GOSTO (PROFILER) */
+#profiler-input-container {
+    position: relative;
+    width: 100%;
+    margin-bottom: 20px;
+}
 
-/* Result Screen */
-#result-screen { justify-content: center; text-align: left; }
-.result-content { display: flex; gap: 30px; align-items: center; }
-.result-poster img { width: 250px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-.result-details h2 { font-size: 2.5em; margin-bottom: 15px; }
-.result-details p { color: var(--text-color-secondary); line-height: 1.7; margin-bottom: 30px; }
-#trailer-container { margin-top: 20px; aspect-ratio: 16/9; width: 100%; }
-#trailer-container iframe { width: 100%; height: 100%; border: none; border-radius: 10px; }
+#movie-search-input {
+    width: 100%;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 10px;
+    padding: 15px;
+    font-size: 1.1em;
+    color: var(--text-color);
+}
 
-/* Loading Overlay */
-#loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: none; justify-content: center; align-items: center; z-index: 100; }
-#loading-overlay.visible { display: flex; }
-.spinner { width: 50px; height: 50px; border: 4px solid var(--text-color-secondary); border-top-color: var(--secondary-accent); border-radius: 50%; animation: spin 1s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
+#search-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #1a1a2e;
+    border-radius: 10px;
+    margin-top: 5px;
+    max-height: 300px;
+    overflow-y: auto;
+    z-index: 10;
+}
+
+.result-item {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+.result-item:hover {
+    background-color: var(--secondary-accent);
+}
+.result-item img {
+    width: 40px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 4px;
+    margin-right: 15px;
+}
+
+#selected-movies {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    margin-bottom: 30px;
+    min-height: 50px;
+}
+
+.movie-pill {
+    display: flex;
+    align-items: center;
+    background-color: var(--primary-accent);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 20px;
+    font-weight: 700;
+}
+.movie-pill span {
+    cursor: pointer;
+    margin-left: 10px;
+    opacity: 0.7;
+}
+.movie-pill span:hover {
+    opacity: 1;
+}
+
+/* Desabilitar botões */
+.main-action-btn:disabled {
+    background: #333;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
