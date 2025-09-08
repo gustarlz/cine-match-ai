@@ -58,13 +58,7 @@ O fluxo do usuário foi projetado para ser simples e intuitivo:
 
 
 
-code
-Code
-download
-content_copy
-expand_less
-IGNORE_WHEN_COPYING_START
-IGNORE_WHEN_COPYING_END
+
 #### **Como Executar Localmente**
 
 1.  **Pré-requisitos:**
