@@ -63,6 +63,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+
+    /* ** A CORREÇÃO PRINCIPAL DO LAYOUT ESTÁ AQUI ** */
+/* ** A CORREÇÃO PRINCIPAL DO LAYOUT ESTÁ AQUI ** */
+
     async function generateInitialRecommendations() {
         showLoading(true);
         try {

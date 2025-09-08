@@ -168,6 +168,8 @@ body {
 .result-poster { flex-shrink: 0; }
 .result-poster img { width: 300px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); height: auto; max-height: 100%; object-fit: contain; }
 /* ** A CORREÇÃO PRINCIPAL DO LAYOUT ESTÁ AQUI ** */
+/* ** A CORREÇÃO PRINCIPAL DO LAYOUT ESTÁ AQUI ** */
+
 .result-details {
     display: flex;
     flex-direction: column;
