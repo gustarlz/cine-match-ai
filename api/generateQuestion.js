@@ -9,37 +9,27 @@ module.exports = async (req, res) => {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  const { conversationHistory, userProfile, rejectedMovie, feedback } = req.body;
+  const { userProfile, rejectedMovie, feedback } = req.body;
 
-  let prompt;
+  // ESTE É O NOVO PROMPT INTELIGENTE
+  const prompt = `
+    Você é um especialista em cinema analisando o feedback de um usuário.
+    O perfil do usuário é:
+    - Top Filmes: ${JSON.stringify(userProfile.topMovies.map(m => m.title))}
 
-  if (conversationHistory && conversationHistory.length > 0) {
-    // ESTADO DE REFINAMENTO: O usuário já deu feedback.
-    prompt = `
-      Você é um especialista em cinema. O perfil do usuário é:
-      - Gêneros Favoritos: ${JSON.stringify(userProfile.genres)}
-      - Top Filmes: ${JSON.stringify(userProfile.topMovies.map(m => m.title))}
+    A última recomendação foi "${rejectedMovie.title}".
+    O feedback do usuário foi: "${feedback}".
 
-      A última recomendação foi "${rejectedMovie.title}". O feedback do usuário foi: "${feedback}".
+    Sua tarefa é traduzir o feedback vago do usuário em dados úteis. Analise o feedback no contexto dos filmes favoritos e do filme rejeitado.
+    Gere uma lista de até 3 palavras-chave (em inglês, se possível) a serem EVITADAS na próxima busca.
+    Gere uma lista de até 3 palavras-chave (em inglês, se possível) a serem PRIORIZADAS na próxima busca.
 
-      Sua tarefa é analisar o feedback e o perfil original e sugerir UM ÚNICO novo título de filme que se ajuste melhor.
-      
-      Responda APENAS com um objeto JSON no formato:
-      { "type": "refined_recommendation", "title": "Nome do Novo Filme" }
-    `;
-  } else {
-    // ESTADO INICIAL: Gerar a primeira lista de recomendações.
-    prompt = `
-      Você é um especialista em cinema. Analise o seguinte perfil de gosto de um usuário:
-      - Gêneros Favoritos: ${JSON.stringify(userProfile.genres)}
-      - Top 3 Filmes: ${JSON.stringify(userProfile.topMovies.map(m => m.title))}
-
-      Sua tarefa é gerar uma lista de 5 títulos de filmes que seriam uma combinação perfeita para este usuário. Pense nos temas, no ritmo e no estilo dos filmes favoritos dele.
-      
-      Responda APENAS com um objeto JSON no formato:
-      { "type": "recommendation_list", "titles": ["Título do Filme 1", "Título do Filme 2", "Título do Filme 3", "Título do Filme 4", "Título do Filme 5"] }
-    `;
-  }
+    Exemplo de feedback: "não gostei da vibe" para um filme de ação. Sua análise pode ser que o usuário busca algo menos genérico.
+    Exemplo de resposta JSON: { "type": "refinement_analysis", "avoid_keywords": ["action", "explosions"], "prioritize_keywords": ["sci-fi", "dystopian", "mind-bending"] }
+    
+    Responda APENAS com um objeto JSON no formato:
+    { "type": "refinement_analysis", "avoid_keywords": ["palavra1", "palavra2"], "prioritize_keywords": ["palavra3", "palavra4"] }
+  `;
 
   const messages = [{ role: 'system', content: prompt }];
 

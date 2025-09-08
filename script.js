@@ -137,37 +137,69 @@ document.addEventListener('DOMContentLoaded', () => {
     // ** A NOVA FUNÇÃO DE REFINAMENTO INTELIGENTE **
     async function handleUserInput(text) {
         if (!text.trim()) return;
-        
+
         addMessage(text, "user");
         userInput.value = '';
+        suggestionsContainer.innerHTML = ''; // Limpa os botões de sugestão
         showLoading(true);
-        
-        // Envia o feedback para a IA
-        const aiResponse = await fetchFromAI(false, text);
-        
-        if (aiResponse && aiResponse.type === 'refined_recommendation') {
-            // IA sugeriu um novo filme, busca os detalhes dele
-            const newMovie = await fetchMovieDetailsByTitle(aiResponse.title);
-            if (newMovie) {
-                // Adiciona o novo filme no topo da nossa lista e o exibe
-                recommendationPool.unshift(newMovie);
-                await displayNextRecommendation();
-            } else {
-                addMessage(`A IA sugeriu "${aiResponse.title}", mas não o encontrei. Que tal tentar outra sugestão?`, 'ai');
-            }
+
+        // Pede a ANÁLISE da IA sobre o feedback
+        const aiAnalysis = await fetchFromAI(false, text);
+
+        if (aiAnalysis && aiAnalysis.type === 'refinement_analysis') {
+            const { avoid_keywords, prioritize_keywords } = aiAnalysis;
+            
+            // Pega a lista de recomendações que ainda temos...
+            let pool = [...recommendationPool];
+
+            // Pega as keywords de cada filme da nossa lista para poder comparar
+            const poolWithKeywordsPromises = pool.map(async movie => {
+                const keywords = await fetchMovieKeywords(movie.id);
+                movie.keywords = keywords.map(k => k.name); // Salva os nomes das keywords
+                return movie;
+            });
+            const poolWithKeywords = await Promise.all(poolWithKeywordsPromises);
+            
+            // REFINA a lista!
+            const refinedPool = poolWithKeywords.filter(movie => {
+                // Se o filme tiver alguma keyword para evitar, ele é removido.
+                for (const keywordToAvoid of avoid_keywords) {
+                    if (movie.keywords.includes(keywordToAvoid)) {
+                        return false; 
+                    }
+                }
+                return true;
+            });
+
+            // Reordena a lista para dar prioridade
+            refinedPool.sort((a, b) => {
+                let scoreA = 0;
+                let scoreB = 0;
+                
+                prioritize_keywords.forEach(keyword => {
+                    if (a.keywords.includes(keyword)) scoreA++;
+                    if (b.keywords.includes(keyword)) scoreB++;
+                });
+
+                return scoreB - scoreA; // Filmes com mais keywords prioritárias vêm primeiro
+            });
+            
+            recommendationPool = refinedPool; // Atualiza nossa lista de recomendações
+            await displayNextRecommendation();
+
         } else {
-            addMessage("Não consegui pensar em uma nova sugestão com base nisso. Você pode tentar o botão 'Outra Sugestão'.", 'ai');
+            showLoading(false);
+            addMessage("Não consegui refinar a busca com base nisso. Que tal tentar o botão 'Outra Sugestão'?", 'ai');
         }
-        showLoading(false);
     }
 
     async function fetchFromAI(isInitial = true, feedback = null) {
         try {
+           
             const payload = { 
                 userProfile,
-                conversationHistory,
-                rejectedMovie: isInitial ? null : currentRecommendation,
-                feedback: feedback
+                rejectedMovie: currentRecommendation, // removemos o isInitial
+                feedback: feedback 
             };
             const response = await fetch('/api/generateQuestion', {
                 method: 'POST',
