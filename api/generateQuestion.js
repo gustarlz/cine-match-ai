@@ -1,9 +1,9 @@
 // api/generateQuestion.js
-const OpenAI = require('openai');
+const Groq = require('groq-sdk');
 
-// Inicializa o cliente da OpenAI com a nossa chave secreta
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+// Inicializa o cliente da Groq com a nossa chave secreta
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY,
 });
 
 module.exports = async (req, res) => {
@@ -13,7 +13,6 @@ module.exports = async (req, res) => {
 
   const { conversationHistory } = req.body;
 
-  // O histórico de conversa para o ChatGPT tem um formato específico
   const messages = [
     {
       role: 'system',
@@ -23,7 +22,8 @@ module.exports = async (req, res) => {
         1. Se a conversa tiver menos de 3 turnos, gere a PRÓXIMA pergunta para continuar a conversa.
         2. Junto com a pergunta, gere 3 ou 4 respostas curtas e sugeridas em botões.
         3. Se a conversa já tiver 3 ou mais turnos, não faça mais perguntas. Em vez disso, gere um resumo final para uma busca de filme com IDs de gênero do TMDb.
-        Responda APENAS com um objeto JSON. O formato deve ser:
+        Responda APENAS com um objeto JSON válido. Não inclua texto antes ou depois, nem formatação de markdown.
+        O formato JSON deve ser:
         - Para uma nova pergunta: { "type": "question", "text": "Sua pergunta aqui...", "suggestions": ["Sugestão 1", "Sugestão 2"] }
         - Para o resumo final: { "type": "summary", "query": "filme de ação e aventura...", "genre_ids": [28, 12, 53] }
       `
@@ -36,19 +36,19 @@ module.exports = async (req, res) => {
   ];
 
   try {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo", // O modelo principal e mais rápido da OpenAI
+    const completion = await groq.chat.completions.create({
+      model: "llama3-8b-8192", // Um excelente modelo de código aberto e rápido
       messages: messages,
-      response_format: { type: "json_object" }, // Pede para a IA garantir uma resposta em JSON
+      response_format: { type: "json_object" },
     });
 
     const jsonResponse = JSON.parse(completion.choices[0].message.content);
     res.status(200).json(jsonResponse);
 
   } catch (error) {
-    console.error('--- ERRO DETALHADO OPENAI ---', error);
+    console.error('--- ERRO DETALHADO GROQ ---', error);
     res.status(500).json({ 
-        error: 'Falha ao comunicar com a IA da OpenAI.',
+        error: 'Falha ao comunicar com a IA da Groq.',
         details: error.message 
     });
   }
