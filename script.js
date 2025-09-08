@@ -178,7 +178,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 movie.genre_ids.some(genreId => userProfile.genres.includes(genreId))
             );
 
-            recommendationPool = finalPool.sort((a, b) => b.popularity - a.popularity); // Ordenar por popularidade
+            recommendationPool = finalPool.sort((a, b) => b.popularity - a.popularity);
 
             if (recommendationPool.length > 0) {
                 await displayNextRecommendation();
@@ -234,22 +234,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function fetchMovieTrailer(movieId) {
         try {
-            // *** MUDANÇA IMPORTANTE AQUI: Removemos o &language=pt-BR ***
             const response = await fetch(`https://api.themoviedb.org/3/movie/${movieId}/videos?api_key=${TMDB_API_KEY}`);
             const data = await response.json();
 
-            // Lógica melhorada para encontrar o melhor trailer
             const trailers = data.results.filter(video => video.type === 'Trailer' && video.site === 'YouTube');
             if (trailers.length === 0) return null;
 
-            // 1. Tenta encontrar um trailer oficial em inglês
-            let bestTrailer = trailers.find(t => t.official && t.iso_639_1 === 'en');
-            // 2. Se não achar, tenta qualquer trailer oficial
-            if (!bestTrailer) bestTrailer = trailers.find(t => t.official);
-            // 3. Se não achar, tenta qualquer trailer em inglês
-            if (!bestTrailer) bestTrailer = trailers.find(t => t.iso_639_1 === 'en');
-            // 4. Se não achar, pega o primeiro trailer da lista
-            if (!bestTrailer) bestTrailer = trailers[0];
+            let bestTrailer = trailers.find(t => t.official && t.iso_639_1 === 'en') || 
+                              trailers.find(t => t.official) || 
+                              trailers.find(t => t.iso_639_1 === 'en') || 
+                              trailers[0];
 
             return `https://www.youtube.com/embed/${bestTrailer.key}`;
         } catch (error) {
@@ -259,34 +253,31 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // =========================================================
-    // INICIALIZAÇÃO E EVENT LISTENERS
+    // INICIALIZAÇÃO E EVENT LISTENERS - VERSÃO CORRIGIDA
     // =========================================================
-    function initialize() {
-        startBtn.addEventListener('click', () => {
-            showScreen(genreScreen);
-            initializeGenreScreen();
-        });
+    startBtn.addEventListener('click', () => {
+        showScreen(genreScreen);
+        initializeGenreScreen();
+    });
 
-        genresNextBtn.addEventListener('click', () => {
-            showScreen(profilerScreen);
-        });
-        
-        profilerNextBtn.addEventListener('click', generateAccurateRecommendations);
+    genresNextBtn.addEventListener('click', () => {
+        showScreen(profilerScreen);
+    });
+    
+    profilerNextBtn.addEventListener('click', generateAccurateRecommendations);
 
-        movieSearchInput.addEventListener('keyup', (event) => {
-            clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(() => {
-                searchMovies(event.target.value);
-            }, 300);
-        });
-        
-        selectedMoviesContainer.addEventListener('click', (event) => {
-            if (event.target.classList.contains('remove-movie')) {
-                const movieId = parseInt(event.target.dataset.movieId);
-                removeMovie(movieId);
-            }
-        });
-    }
+    movieSearchInput.addEventListener('keyup', (event) => {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+            searchMovies(event.target.value);
+        }, 300);
+    });
+    
+    selectedMoviesContainer.addEventListener('click', (event) => {
+        if (event.target.classList.contains('remove-movie')) {
+            const movieId = parseInt(event.target.dataset.movieId);
+            removeMovie(movieId);
+        }
+    });
 
-    initialize(); // Inicia a aplicação
 });
