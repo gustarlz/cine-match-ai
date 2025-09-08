@@ -1,7 +1,5 @@
-// api/generateQuestion.js
 const Groq = require('groq-sdk');
 
-// Inicializa o cliente da Groq com a nossa chave secreta
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
 });
@@ -11,50 +9,51 @@ module.exports = async (req, res) => {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-const { conversationHistory, userProfile } = req.body; // Agora recebemos o perfil do usuário!
+  // Agora podemos receber o filme rejeitado também
+  const { conversationHistory, userProfile, rejectedMovie } = req.body;
 
-const messages = [
-  {
-    role: 'system',
-    content: `
-      Você é um concierge de cinema IA chamado Cine-Match Pro. Sua tarefa é fazer UMA ÚNICA pergunta final e inteligente para dar a recomendação de filme perfeita.
-      Você já tem estas informações sobre o usuário:
-      - Gêneros Favoritos: ${JSON.stringify(userProfile.genres)} (use os IDs para saber os gêneros)
+  let prompt;
+  if (rejectedMovie) {
+    // Prompt de Refinamento
+    prompt = `
+      Você é um concierge de cinema IA. O usuário tem este perfil de gosto:
+      - Gêneros Favoritos: ${JSON.stringify(userProfile.genres)}
       - Top 3 Filmes: ${JSON.stringify(userProfile.topMovies.map(m => m.title))}
+      
+      Eu sugeri o filme "${rejectedMovie.title}", mas o usuário não gostou.
+      Sua tarefa é fazer UMA ÚNICA pergunta para entender o que ele não gostou e encontrar uma alternativa melhor.
+      Exemplos de perguntas: "Entendido. O que te desagradou em '${rejectedMovie.title}'? Foi o ritmo, o tema, ou outra coisa?", "Certo. O que faltou em '${rejectedMovie.title}' para ser o filme ideal para hoje?".
+      
+      Responda APENAS com um objeto JSON no formato: { "type": "question", "text": "Sua pergunta aqui...", "suggestions": ["Foi o ritmo", "O tema não me interessou", "Busco algo mais intenso", "Outro motivo"] }
+    `;
+  } else {
+    // Prompt inicial (foi removido do fluxo principal, mas mantemos como fallback)
+    prompt = `
+      Você é um concierge de cinema IA. Baseado no perfil do usuário, gere uma ÚNICA pergunta para refinar a busca.
+      - Gêneros: ${JSON.stringify(userProfile.genres)}
+      - Top Filmes: ${JSON.stringify(userProfile.topMovies.map(m => m.title))}
+      Responda APENAS com um objeto JSON no formato: { "type": "question", "text": "Sua pergunta aqui...", "suggestions": ["Sugestão 1", "Sugestão 2"] }
+    `;
+  }
 
-      Sua tarefa é:
-      1. Analise os gêneros e os filmes favoritos para entender o "gosto" do usuário.
-      2. Faça UMA pergunta de "ajuste fino" baseada nesse gosto. Exemplo: "Vejo que você gosta de ficção científica complexa. Para hoje, busca algo nesse estilo ou uma aventura mais leve?".
-      3. Gere 3 ou 4 sugestões de resposta para essa pergunta.
-      4. Se a conversa já tiver UMA resposta do usuário, não faça mais perguntas. Gere o resumo final.
-
-      Responda APENAS com um objeto JSON válido.
-      - Para a pergunta de ajuste fino: { "type": "question", "text": "Sua pergunta aqui...", "suggestions": ["Sugestão 1", "Sugestão 2"] }
-      - Para o resumo final: { "type": "summary", "query": "filme...", "genre_ids": [28, 12, 53] }
-    `
-  },
-  // Adiciona o histórico da conversa atual
-  ...conversationHistory.map(turn => ({
-    role: turn.role === 'model' ? 'assistant' : 'user',
-    content: turn.parts
-  }))
-];
+  const messages = [
+    { role: 'system', content: prompt },
+    ...conversationHistory.map(turn => ({
+      role: turn.role === 'model' ? 'assistant' : 'user',
+      content: turn.parts
+    }))
+  ];
 
   try {
     const completion = await groq.chat.completions.create({
-      model: "llama-3.1-8b-instant", // Um excelente modelo de código aberto e rápido
+      model: "llama-3.1-8b-instant", // Use o modelo que sabemos que funciona
       messages: messages,
       response_format: { type: "json_object" },
     });
-
     const jsonResponse = JSON.parse(completion.choices[0].message.content);
     res.status(200).json(jsonResponse);
-
   } catch (error) {
     console.error('--- ERRO DETALHADO GROQ ---', error);
-    res.status(500).json({ 
-        error: 'Falha ao comunicar com a IA da Groq.',
-        details: error.message 
-    });
+    res.status(500).json({ error: 'Falha ao comunicar com a IA da Groq.' });
   }
 };
