@@ -1,59 +1,54 @@
-// Versão Final - Forçando o Redeploy
+// api/generateQuestion.js
+const OpenAI = require('openai');
 
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+// Inicializa o cliente da OpenAI com a nossa chave secreta
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
-// Pega a API Key das "Environment Variables" da Vercel (o jeito seguro!)
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-
-// Esta é a sintaxe mais segura para a Vercel
 module.exports = async (req, res) => {
-  // GARANTE que apenas o método POST seja aceito.
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
   const { conversationHistory } = req.body;
 
-  try {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro-latest" }); // Nome do modelo corrigido
-
-    const prompt = `
+  // O histórico de conversa para o ChatGPT tem um formato específico
+  const messages = [
+    {
+      role: 'system',
+      content: `
         Você é um concierge de cinema IA chamado Cine-Match. Seu objetivo é descobrir o filme perfeito para o usuário fazendo perguntas criativas e pessoais.
-        A conversa até agora foi: ${JSON.stringify(conversationHistory)}
-
         Sua tarefa é:
-        1. Se a conversa tiver menos de 3 turnos, gere a PRÓXIMA pergunta para continuar a conversa. A pergunta deve ser aberta e interessante.
+        1. Se a conversa tiver menos de 3 turnos, gere a PRÓXIMA pergunta para continuar a conversa.
         2. Junto com a pergunta, gere 3 ou 4 respostas curtas e sugeridas em botões.
-        3. Se a conversa já tiver 3 ou mais turnos, não faça mais perguntas. Em vez disso, analise o histórico e gere um resumo final para uma busca de filme com IDs de gênero do TMDb.
-
-        Responda APENAS com um objeto JSON. Não inclua texto antes ou depois, nem formatação de markdown como \`\`\`json.
-        O formato JSON deve ser:
+        3. Se a conversa já tiver 3 ou mais turnos, não faça mais perguntas. Em vez disso, gere um resumo final para uma busca de filme com IDs de gênero do TMDb.
+        Responda APENAS com um objeto JSON. O formato deve ser:
         - Para uma nova pergunta: { "type": "question", "text": "Sua pergunta aqui...", "suggestions": ["Sugestão 1", "Sugestão 2"] }
-        - Para o resumo final: { "type": "summary", "query": "filme de ação e aventura com reviravoltas para assistir com amigos", "genre_ids": [28, 12, 53] }
-    `;
+        - Para o resumo final: { "type": "summary", "query": "filme de ação e aventura...", "genre_ids": [28, 12, 53] }
+      `
+    },
+    // Adiciona o histórico da conversa atual
+    ...conversationHistory.map(turn => ({
+      role: turn.role === 'model' ? 'assistant' : 'user',
+      content: turn.parts
+    }))
+  ];
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    let text = response.text();
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo", // O modelo principal e mais rápido da OpenAI
+      messages: messages,
+      response_format: { type: "json_object" }, // Pede para a IA garantir uma resposta em JSON
+    });
 
-    // Limpa a resposta da IA para garantir que seja um JSON válido
-    if (text.includes('```json')) {
-      text = text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1).trim();
-    } else if (!text.startsWith('{')) {
-        const jsonStart = text.indexOf('{');
-        if (jsonStart !== -1) {
-            text = text.substring(jsonStart);
-        }
-    }
-
-    const jsonResponse = JSON.parse(text);
-    
+    const jsonResponse = JSON.parse(completion.choices[0].message.content);
     res.status(200).json(jsonResponse);
 
   } catch (error) {
-    console.error('--- ERRO DETALHADO ---', error);
+    console.error('--- ERRO DETALHADO OPENAI ---', error);
     res.status(500).json({ 
-        error: 'Falha ao comunicar com a IA.',
+        error: 'Falha ao comunicar com a IA da OpenAI.',
         details: error.message 
     });
   }

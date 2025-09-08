@@ -4,6 +4,6 @@
   "description": "AI-powered movie recommender",
   "main": "index.js",
   "dependencies": {
-    "@google/generative-ai": "^0.14.1"
+    "openai": "^4.52.7"
   }
 }
