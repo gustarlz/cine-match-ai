@@ -9,44 +9,43 @@ module.exports = async (req, res) => {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  // Agora podemos receber o filme rejeitado também
-  const { conversationHistory, userProfile, rejectedMovie } = req.body;
+  const { conversationHistory, userProfile, rejectedMovie, feedback } = req.body;
 
   let prompt;
-  if (rejectedMovie) {
-    // Prompt de Refinamento
+
+  if (conversationHistory && conversationHistory.length > 0) {
+    // ESTADO DE REFINAMENTO: O usuário já deu feedback.
     prompt = `
-      Você é um concierge de cinema IA. O usuário tem este perfil de gosto:
+      Você é um especialista em cinema. O perfil do usuário é:
       - Gêneros Favoritos: ${JSON.stringify(userProfile.genres)}
-      - Top 3 Filmes: ${JSON.stringify(userProfile.topMovies.map(m => m.title))}
+      - Top Filmes: ${JSON.stringify(userProfile.topMovies.map(m => m.title))}
+
+      A última recomendação foi "${rejectedMovie.title}". O feedback do usuário foi: "${feedback}".
+
+      Sua tarefa é analisar o feedback e o perfil original e sugerir UM ÚNICO novo título de filme que se ajuste melhor.
       
-      Eu sugeri o filme "${rejectedMovie.title}", mas o usuário não gostou.
-      Sua tarefa é fazer UMA ÚNICA pergunta para entender o que ele não gostou e encontrar uma alternativa melhor.
-      Exemplos de perguntas: "Entendido. O que te desagradou em '${rejectedMovie.title}'? Foi o ritmo, o tema, ou outra coisa?", "Certo. O que faltou em '${rejectedMovie.title}' para ser o filme ideal para hoje?".
-      
-      Responda APENAS com um objeto JSON no formato: { "type": "question", "text": "Sua pergunta aqui...", "suggestions": ["Foi o ritmo", "O tema não me interessou", "Busco algo mais intenso", "Outro motivo"] }
+      Responda APENAS com um objeto JSON no formato:
+      { "type": "refined_recommendation", "title": "Nome do Novo Filme" }
     `;
   } else {
-    // Prompt inicial (foi removido do fluxo principal, mas mantemos como fallback)
+    // ESTADO INICIAL: Gerar a primeira lista de recomendações.
     prompt = `
-      Você é um concierge de cinema IA. Baseado no perfil do usuário, gere uma ÚNICA pergunta para refinar a busca.
-      - Gêneros: ${JSON.stringify(userProfile.genres)}
-      - Top Filmes: ${JSON.stringify(userProfile.topMovies.map(m => m.title))}
-      Responda APENAS com um objeto JSON no formato: { "type": "question", "text": "Sua pergunta aqui...", "suggestions": ["Sugestão 1", "Sugestão 2"] }
+      Você é um especialista em cinema. Analise o seguinte perfil de gosto de um usuário:
+      - Gêneros Favoritos: ${JSON.stringify(userProfile.genres)}
+      - Top 3 Filmes: ${JSON.stringify(userProfile.topMovies.map(m => m.title))}
+
+      Sua tarefa é gerar uma lista de 5 títulos de filmes que seriam uma combinação perfeita para este usuário. Pense nos temas, no ritmo e no estilo dos filmes favoritos dele.
+      
+      Responda APENAS com um objeto JSON no formato:
+      { "type": "recommendation_list", "titles": ["Título do Filme 1", "Título do Filme 2", "Título do Filme 3", "Título do Filme 4", "Título do Filme 5"] }
     `;
   }
 
-  const messages = [
-    { role: 'system', content: prompt },
-    ...conversationHistory.map(turn => ({
-      role: turn.role === 'model' ? 'assistant' : 'user',
-      content: turn.parts
-    }))
-  ];
+  const messages = [{ role: 'system', content: prompt }];
 
   try {
     const completion = await groq.chat.completions.create({
-      model: "llama-3.1-8b-instant", // Use o modelo que sabemos que funciona
+      model: "llama-3.1-8b-instant",
       messages: messages,
       response_format: { type: "json_object" },
     });
