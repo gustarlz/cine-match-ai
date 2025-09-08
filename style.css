@@ -270,3 +270,28 @@ body {
     transform: none;
     box-shadow: none;
 }
+
+.result-details p {
+    max-height: 250px; /* Define uma altura máxima para a sinopse */
+    overflow-y: auto; /* Adiciona uma barra de rolagem vertical APENAS se necessário */
+    padding-right: 15px; /* Um pequeno espaço para a barra de rolagem não colar no texto */
+    color: var(--text-color-secondary);
+    line-height: 1.7;
+    margin-bottom: 30px;
+}
+
+/* Um truque para melhorar a rolagem em navegadores baseados em WebKit (Chrome, Edge) */
+.result-details p::-webkit-scrollbar {
+    width: 8px;
+}
+.result-details p::-webkit-scrollbar-track {
+    background: rgba(0,0,0,0.2);
+    border-radius: 4px;
+}
+.result-details p::-webkit-scrollbar-thumb {
+    background: var(--primary-accent);
+    border-radius: 4px;
+}
+.result-details p::-webkit-scrollbar-thumb:hover {
+    background: var(--secondary-accent);
+}

@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const movieSearchInput = document.getElementById('movie-search-input');
     const searchResultsContainer = document.getElementById('search-results');
     const selectedMoviesContainer = document.getElementById('selected-movies');
+    const loadingOverlay = document.getElementById('loading-overlay');
     const resultTemplate = document.getElementById('result-template');
 
     // Estado da Aplicação
@@ -21,25 +22,16 @@ document.addEventListener('DOMContentLoaded', () => {
     let recommendationPool = [];
     let debounceTimer;
 
-    // =========================================================
-    // A CORREÇÃO ESTÁ AQUI: Função showLoading Robusta
-    // =========================================================
-    function showLoading(show) {
-        const loadingOverlay = document.getElementById('loading-overlay');
-        if (loadingOverlay) { // Verifica se o elemento foi encontrado ANTES de tentar usá-lo
-            loadingOverlay.classList.toggle('visible', show);
-        } else {
-            console.error("ERRO CRÍTICO: Elemento 'loading-overlay' não encontrado no HTML.");
-        }
-    }
-
     function showScreen(screen) {
         document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
         screen.classList.add('active');
     }
-    
-    // ... O RESTO DO CÓDIGO PERMANECE IGUAL ...
-    
+
+    function showLoading(show) {
+        const overlay = document.getElementById('loading-overlay');
+        if (overlay) overlay.classList.toggle('visible', show);
+    }
+
     function initializeGenreScreen() {
         const genres = [
             {id: 28, name: 'Ação'}, {id: 12, name: 'Aventura'},
@@ -52,20 +44,12 @@ document.addEventListener('DOMContentLoaded', () => {
             {id: 878, name: 'Ficção Científica'}, {id: 53, name: 'Suspense'},
             {id: 10752, name: 'Guerra'}, {id: 37, name: 'Faroeste'}
         ];
-        
         genreGrid.innerHTML = genres.map(g => `<button class="genre-btn" data-genre-id="${g.id}">${g.name}</button>`).join('');
-        
         genreGrid.querySelectorAll('.genre-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 const genreId = parseInt(btn.dataset.genreId);
                 btn.classList.toggle('selected');
-                
-                if (userProfile.genres.includes(genreId)) {
-                    userProfile.genres = userProfile.genres.filter(id => id !== genreId);
-                } else {
-                    userProfile.genres.push(genreId);
-                }
-                
+                userProfile.genres = userProfile.genres.includes(genreId) ? userProfile.genres.filter(id => id !== genreId) : [...userProfile.genres, genreId];
                 genresNextBtn.disabled = userProfile.genres.length === 0;
             });
         });
@@ -95,7 +79,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             </div>
         `).join('');
-
         searchResultsContainer.querySelectorAll('.result-item').forEach(item => {
             item.addEventListener('click', () => {
                 const selectedMovie = movies.find(m => m.id == item.dataset.movieId);
@@ -126,43 +109,78 @@ document.addEventListener('DOMContentLoaded', () => {
                 <span class="remove-movie" data-movie-id="${movie.id}"> &times;</span>
             </div>
         `).join('');
-        
         profilerNextBtn.disabled = userProfile.topMovies.length === 0;
-
         movieSearchInput.disabled = userProfile.topMovies.length >= 3;
         movieSearchInput.placeholder = userProfile.topMovies.length >= 3 ? 'Sua lista está completa!' : 'Continue digitando...';
+    }
+
+    // =========================================================
+    // NOVA LÓGICA DE RECOMENDAÇÃO COM KEYWORDS
+    // =========================================================
+    async function fetchMovieKeywords(movieId) {
+        try {
+            const response = await fetch(`https://api.themoviedb.org/3/movie/${movieId}/keywords?api_key=${TMDB_API_KEY}`);
+            const data = await response.json();
+            return data.keywords || [];
+        } catch (error) {
+            console.error(`Erro ao buscar keywords para o filme ${movieId}:`, error);
+            return [];
+        }
     }
 
     async function generateAccurateRecommendations() {
         showLoading(true);
         const movieIds = userProfile.topMovies.map(m => m.id);
-        const recommendationPromises = movieIds.map(id => 
-            fetch(`https://api.themoviedb.org/3/movie/${id}/recommendations?api_key=${TMDB_API_KEY}&language=pt-BR`)
-            .then(res => res.json())
-        );
 
         try {
-            const recommendationResults = await Promise.all(recommendationPromises);
-            
-            let combinedPool = [];
-            recommendationResults.forEach(result => {
-                if (result.results) {
-                    combinedPool.push(...result.results);
-                }
+            // 1. Analisar o DNA Cinematográfico
+            const keywordPromises = movieIds.map(fetchMovieKeywords);
+            const userKeywordsArrays = await Promise.all(keywordPromises);
+            const keywordProfile = new Map();
+            userKeywordsArrays.flat().forEach(keyword => {
+                keywordProfile.set(keyword.id, (keywordProfile.get(keyword.id) || 0) + 1);
             });
 
+            // 2. Criar a Piscina de Candidatos
+            const recommendationPromises = movieIds.map(id => 
+                fetch(`https://api.themoviedb.org/3/movie/${id}/recommendations?api_key=${TMDB_API_KEY}&language=pt-BR`).then(res => res.json())
+            );
+            const recommendationResults = await Promise.all(recommendationPromises);
+            const combinedPool = recommendationResults.flatMap(result => result.results || []);
+
             const uniqueIds = new Set();
-            const uniquePool = combinedPool.filter(movie => {
+            let uniquePool = combinedPool.filter(movie => {
                 if (uniqueIds.has(movie.id) || movieIds.includes(movie.id)) return false;
                 uniqueIds.add(movie.id);
                 return true;
             });
             
-            const finalPool = uniquePool.filter(movie => 
+            // 3. Pontuar os Candidatos
+            const scoredPoolPromises = uniquePool.map(async movie => {
+                const movieKeywords = await fetchMovieKeywords(movie.id);
+                let matchScore = 0;
+                movieKeywords.forEach(keyword => {
+                    if (keywordProfile.has(keyword.id)) {
+                        matchScore += keywordProfile.get(keyword.id); // Adiciona pontos baseados na frequência no perfil do usuário
+                    }
+                });
+                return { ...movie, matchScore };
+            });
+            const scoredPool = await Promise.all(scoredPoolPromises);
+
+            // 4. Filtrar por Gênero e Ordenar
+            let finalPool = scoredPool.filter(movie => 
                 movie.genre_ids.some(genreId => userProfile.genres.includes(genreId))
             );
-
-            recommendationPool = finalPool.sort((a, b) => b.popularity - a.popularity);
+            
+            finalPool.sort((a, b) => {
+                if (b.matchScore !== a.matchScore) {
+                    return b.matchScore - a.matchScore; // Prioriza a pontuação de keywords
+                }
+                return b.popularity - a.popularity; // Usa popularidade como desempate
+            });
+            
+            recommendationPool = finalPool;
 
             if (recommendationPool.length > 0) {
                 await displayNextRecommendation();
@@ -179,14 +197,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     async function displayNextRecommendation() {
-        showLoading(true); // Mostrar loading entre as recomendações
         if (recommendationPool.length === 0) {
             const btn = document.getElementById('generate-another-btn');
             if(btn) {
                 btn.textContent = "Fim das sugestões!";
                 btn.disabled = true;
             }
-            showLoading(false);
             return;
         }
 
@@ -203,19 +219,17 @@ document.addEventListener('DOMContentLoaded', () => {
         if (trailerUrl) {
             trailerContainer.innerHTML = `<iframe src="${trailerUrl}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
         } else {
-            trailerContainer.innerHTML = '<p>Trailer não disponível.</p>';
+            trailerContainer.innerHTML = '<p class="subtitle">Trailer não disponível.</p>';
         }
 
         resultScreen.innerHTML = '';
         resultScreen.appendChild(clone);
-        
+        showScreen(resultScreen);
+
         const generateAnotherBtn = document.getElementById('generate-another-btn');
         if (generateAnotherBtn) {
             generateAnotherBtn.addEventListener('click', displayNextRecommendation);
         }
-        
-        showScreen(resultScreen);
-        showLoading(false);
     }
     
     function displayError(message) {
@@ -229,10 +243,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await response.json();
             const trailers = data.results.filter(video => video.type === 'Trailer' && video.site === 'YouTube');
             if (trailers.length === 0) return null;
-            let bestTrailer = trailers.find(t => t.official && t.iso_639_1 === 'en') || 
-                              trailers.find(t => t.official) || 
-                              trailers.find(t => t.iso_639_1 === 'en') || 
-                              trailers[0];
+            let bestTrailer = trailers.find(t => t.official && t.iso_639_1 === 'en') || trailers.find(t => t.official) || trailers.find(t => t.iso_639_1 === 'en') || trailers[0];
             return `https://www.youtube.com/embed/${bestTrailer.key}`;
         } catch (error) {
             console.error("Erro ao buscar trailer:", error);
@@ -241,36 +252,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function bindEventListeners() {
-        if (startBtn) {
-            startBtn.addEventListener('click', () => {
-                showScreen(genreScreen);
-                initializeGenreScreen();
-            });
-        }
-        if (genresNextBtn) {
-            genresNextBtn.addEventListener('click', () => {
-                showScreen(profilerScreen);
-            });
-        }
-        if (profilerNextBtn) {
-            profilerNextBtn.addEventListener('click', generateAccurateRecommendations);
-        }
-        if (movieSearchInput) {
-            movieSearchInput.addEventListener('keyup', (event) => {
-                clearTimeout(debounceTimer);
-                debounceTimer = setTimeout(() => {
-                    searchMovies(event.target.value);
-                }, 300);
-            });
-        }
-        if (selectedMoviesContainer) {
-            selectedMoviesContainer.addEventListener('click', (event) => {
-                if (event.target.classList.contains('remove-movie')) {
-                    const movieId = parseInt(event.target.dataset.movieId);
-                    removeMovie(movieId);
-                }
-            });
-        }
+        if (startBtn) startBtn.addEventListener('click', () => {
+            showScreen(genreScreen);
+            initializeGenreScreen();
+        });
+        if (genresNextBtn) genresNextBtn.addEventListener('click', () => showScreen(profilerScreen));
+        if (profilerNextBtn) profilerNextBtn.addEventListener('click', generateAccurateRecommendations);
+        if (movieSearchInput) movieSearchInput.addEventListener('keyup', (event) => {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => searchMovies(event.target.value), 300);
+        });
+        if (selectedMoviesContainer) selectedMoviesContainer.addEventListener('click', (event) => {
+            if (event.target.classList.contains('remove-movie')) {
+                const movieId = parseInt(event.target.dataset.movieId);
+                removeMovie(movieId);
+            }
+        });
     }
 
     bindEventListeners();
