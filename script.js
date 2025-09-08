@@ -225,7 +225,11 @@ document.addEventListener('DOMContentLoaded', () => {
         resultScreen.appendChild(clone);
         showScreen(resultScreen);
 
-        document.getElementById('generate-another-btn').addEventListener('click', displayNextRecommendation);
+        // A CORREÇÃO ESTÁ AQUI: precisamos garantir que o botão existe ANTES de adicionar o listener
+        const generateAnotherBtn = document.getElementById('generate-another-btn');
+        if (generateAnotherBtn) {
+            generateAnotherBtn.addEventListener('click', displayNextRecommendation);
+        }
     }
     
     function displayError(message) {
@@ -256,29 +260,39 @@ document.addEventListener('DOMContentLoaded', () => {
     // =========================================================
     // INICIALIZAÇÃO E EVENT LISTENERS - AQUI ESTÁ A CORREÇÃO
     // =========================================================
-    startBtn.addEventListener('click', () => {
-        showScreen(genreScreen);
-        initializeGenreScreen();
-    });
+    if (startBtn) {
+        startBtn.addEventListener('click', () => {
+            showScreen(genreScreen);
+            initializeGenreScreen();
+        });
+    }
 
-    genresNextBtn.addEventListener('click', () => {
-        showScreen(profilerScreen);
-    });
+    if (genresNextBtn) {
+        genresNextBtn.addEventListener('click', () => {
+            showScreen(profilerScreen);
+        });
+    }
     
-    profilerNextBtn.addEventListener('click', generateAccurateRecommendations);
+    if (profilerNextBtn) {
+        profilerNextBtn.addEventListener('click', generateAccurateRecommendations);
+    }
 
-    movieSearchInput.addEventListener('keyup', (event) => {
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => {
-            searchMovies(event.target.value);
-        }, 300);
-    });
+    if (movieSearchInput) {
+        movieSearchInput.addEventListener('keyup', (event) => {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                searchMovies(event.target.value);
+            }, 300);
+        });
+    }
     
-    selectedMoviesContainer.addEventListener('click', (event) => {
-        if (event.target.classList.contains('remove-movie')) {
-            const movieId = parseInt(event.target.dataset.movieId);
-            removeMovie(movieId);
-        }
-    });
+    if (selectedMoviesContainer) {
+        selectedMoviesContainer.addEventListener('click', (event) => {
+            if (event.target.classList.contains('remove-movie')) {
+                const movieId = parseInt(event.target.dataset.movieId);
+                removeMovie(movieId);
+            }
+        });
+    }
 
 }); // Fim do 'DOMContentLoaded'
