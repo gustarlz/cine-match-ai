@@ -11,7 +11,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const welcomeScreen = document.getElementById('welcome-screen');
     const genreScreen = document.getElementById('genre-screen');
     const profilerScreen = document.getElementById('profiler-screen');
-    const chatScreen = document.getElementById('chat-screen');
     const resultScreen = document.getElementById('result-screen');
     
     const startBtn = document.getElementById('start-btn');
@@ -22,22 +21,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const movieSearchInput = document.getElementById('movie-search-input');
     const searchResultsContainer = document.getElementById('search-results');
     const selectedMoviesContainer = document.getElementById('selected-movies');
-
-    const chatMessages = document.getElementById('chat-messages');
-    const suggestionsContainer = document.getElementById('suggestions-container');
-    const userInput = document.getElementById('user-input');
-    const sendBtn = document.getElementById('send-btn');
     
     const loadingOverlay = document.getElementById('loading-overlay');
+    const resultTemplate = document.getElementById('result-template');
 
     // =========================================================
-    // ESTADO DA APLICAÇÃO (Onde guardamos as escolhas)
+    // ESTADO DA APLICAÇÃO
     // =========================================================
     let userProfile = {
         genres: [],
         topMovies: [],
     };
-    let conversationHistory = [];
+    let recommendationPool = [];
     let debounceTimer;
 
     // =========================================================
@@ -124,7 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function selectMovie(movie) {
         if (userProfile.topMovies.length < 3 && !userProfile.topMovies.some(m => m.id === movie.id)) {
-            userProfile.topMovies.push({id: movie.id, title: movie.title}); // Guardamos apenas ID e Título
+            userProfile.topMovies.push({id: movie.id, title: movie.title});
             renderSelectedMovies();
         }
         movieSearchInput.value = '';
@@ -144,60 +139,102 @@ document.addEventListener('DOMContentLoaded', () => {
                 <span class="remove-movie" data-movie-id="${movie.id}"> &times;</span>
             </div>
         `).join('');
-
+        
         profilerNextBtn.disabled = userProfile.topMovies.length === 0;
 
-        if (userProfile.topMovies.length >= 3) {
-            movieSearchInput.disabled = true;
-            movieSearchInput.placeholder = 'Sua lista está completa!';
-        } else {
-            movieSearchInput.disabled = false;
-            movieSearchInput.placeholder = 'Continue digitando...';
-        }
+        movieSearchInput.disabled = userProfile.topMovies.length >= 3;
+        movieSearchInput.placeholder = userProfile.topMovies.length >= 3 ? 'Sua lista está completa!' : 'Continue digitando...';
     }
 
     // =========================================================
-    // ETAPA 3 E FINAL: LÓGICA DO CHAT E RESULTADO
+    // ETAPA FINAL: LÓGICA DE RECOMENDAÇÃO DE ALTA PRECISÃO
     // =========================================================
-    function addMessage(text, sender) {
-        const bubble = document.createElement('div');
-        bubble.classList.add('chat-bubble', `${sender}-message`);
-        bubble.textContent = text;
-        chatMessages.appendChild(bubble);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-    }
+    async function generateAccurateRecommendations() {
+        showLoading(true);
+        const movieIds = userProfile.topMovies.map(m => m.id);
+        const recommendationPromises = movieIds.map(id => 
+            fetch(`https://api.themoviedb.org/3/movie/${id}/recommendations?api_key=${TMDB_API_KEY}&language=pt-BR`)
+            .then(res => res.json())
+        );
 
-    async function fetchFromAI() {
         try {
-            const response = await fetch('/api/generateQuestion', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ conversationHistory, userProfile }),
+            const recommendationResults = await Promise.all(recommendationPromises);
+            
+            let combinedPool = [];
+            recommendationResults.forEach(result => {
+                if (result.results) {
+                    combinedPool.push(...result.results);
+                }
             });
-            if (!response.ok) throw new Error('A resposta da rede não foi OK');
-            return await response.json();
+
+            // Filtrar duplicados e filmes que o usuário já selecionou
+            const uniqueIds = new Set();
+            const uniquePool = combinedPool.filter(movie => {
+                if (uniqueIds.has(movie.id) || movieIds.includes(movie.id)) {
+                    return false;
+                }
+                uniqueIds.add(movie.id);
+                return true;
+            });
+            
+            // Filtrar pelo gênero selecionado pelo usuário
+            const finalPool = uniquePool.filter(movie => 
+                movie.genre_ids.some(genreId => userProfile.genres.includes(genreId))
+            );
+
+            recommendationPool = finalPool; // Armazenar a piscina de recomendações
+
+            if (recommendationPool.length > 0) {
+                displayNextRecommendation();
+            } else {
+                displayError("Não encontramos recomendações com essa combinação. Tente com outros filmes ou gêneros!");
+            }
+
         } catch (error) {
-            console.error("Erro ao buscar da IA:", error);
-            addMessage("Desculpe, estou com um probleminha para pensar. Tente novamente mais tarde.", "ai");
-            return null;
+            console.error("Erro ao gerar recomendações:", error);
+            displayError("Ocorreu um erro ao buscar suas recomendações. Tente novamente.");
+        } finally {
+            showLoading(false);
         }
     }
     
-    async function fetchMovieRecommendation(genre_ids) {
-        try {
-            const response = await fetch(`https://api.themoviedb.org/3/discover/movie?api_key=${TMDB_API_KEY}&language=pt-BR&sort_by=popularity.desc&include_adult=false&with_genres=${genre_ids.join(',')}`);
-            const data = await response.json();
-            if (data.results && data.results.length > 0) {
-                const movie = data.results[Math.floor(Math.random() * Math.min(data.results.length, 10))];
-                const trailerUrl = await fetchMovieTrailer(movie.id);
-                movie.trailerUrl = trailerUrl;
-                return movie;
+    async function displayNextRecommendation() {
+        if (recommendationPool.length === 0) {
+            const btn = document.getElementById('generate-another-btn');
+            if(btn) {
+                btn.textContent = "Não há mais sugestões!";
+                btn.disabled = true;
             }
-            return null;
-        } catch (error) {
-            console.error("Erro ao buscar recomendação de filme:", error);
-            return null;
+            return;
         }
+
+        const movie = recommendationPool.shift(); // Pega o primeiro e remove da lista
+        const trailerUrl = await fetchMovieTrailer(movie.id);
+        
+        const clone = resultTemplate.content.cloneNode(true);
+        clone.querySelector('h2').textContent = movie.title;
+        clone.querySelector('p').textContent = movie.overview || 'Sinopse não disponível.';
+        clone.querySelector('img').src = movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : 'https://via.placeholder.com/500x750?text=Poster+Indisponível';
+        clone.querySelector('img').alt = `Pôster de ${movie.title}`;
+        
+        const trailerContainer = clone.getElementById('trailer-container');
+        if (trailerUrl) {
+            trailerContainer.innerHTML = `<iframe src="${trailerUrl}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+        } else {
+            trailerContainer.textContent = 'Trailer não disponível.';
+        }
+
+        resultScreen.innerHTML = ''; // Limpa a tela antes de adicionar o novo resultado
+        resultScreen.appendChild(clone);
+        showScreen(resultScreen);
+
+        // Adiciona o listener para o novo botão "Gerar Outra"
+        document.getElementById('generate-another-btn').addEventListener('click', displayNextRecommendation);
+    }
+    
+    function displayError(message) {
+        resultScreen.innerHTML = `<div class="card"><h2>${message}</h2><button class="main-action-btn" onclick="location.reload()">Recomeçar</button></div>`;
+        showScreen(resultScreen);
     }
 
     async function fetchMovieTrailer(movieId) {
@@ -212,64 +249,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function displayAIResponse(data) {
-        addMessage(data.text, "ai");
-        suggestionsContainer.innerHTML = '';
-        if (data.suggestions) {
-            data.suggestions.forEach(sug => {
-                const btn = document.createElement('button');
-                btn.classList.add('suggestion-btn');
-                btn.textContent = sug;
-                btn.onclick = () => handleUserInput(sug);
-                suggestionsContainer.appendChild(btn);
-            });
-        }
-    }
-    
-    async function handleUserInput(text) {
-        if (!text.trim()) return;
-    
-        addMessage(text, "user");
-        conversationHistory.push({ role: 'user', parts: text });
-        userInput.value = '';
-        suggestionsContainer.innerHTML = '';
-        showLoading(true);
-    
-        const aiResponse = await fetchFromAI();
-        showLoading(false);
-    
-        if (aiResponse) {
-            if (aiResponse.type === 'question') {
-                conversationHistory.push({ role: 'model', parts: aiResponse.text });
-                displayAIResponse(aiResponse);
-            } else if (aiResponse.type === 'summary') {
-                const movie = await fetchMovieRecommendation(aiResponse.genre_ids);
-                displayFinalResult(movie);
-            }
-        }
-    }
-
-    function displayFinalResult(movie) {
-        if (!movie) {
-            resultScreen.innerHTML = `<div class="card"><h2>Ops! Não encontrei o filme perfeito. Que tal tentar de novo?</h2><button class="main-action-btn" onclick="location.reload()">Recomeçar</button></div>`;
-        } else {
-            resultScreen.innerHTML = `
-                <div class="result-content">
-                    <div class="result-poster">
-                        <img src="https://image.tmdb.org/t/p/w500${movie.poster_path}" alt="Pôster de ${movie.title}">
-                    </div>
-                    <div class="result-details">
-                        <h2>${movie.title}</h2>
-                        <p>${movie.overview}</p>
-                        ${movie.trailerUrl ? `<div id="trailer-container"><iframe src="${movie.trailerUrl}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>` : '<p>Trailer não disponível.</p>'}
-                        <button class="main-action-btn" onclick="location.reload()" style="margin-top: 20px;">Recomeçar</button>
-                    </div>
-                </div>
-            `;
-        }
-        showScreen(resultScreen);
-    }
-
     // =========================================================
     // INICIALIZAÇÃO E EVENT LISTENERS
     // =========================================================
@@ -282,36 +261,20 @@ document.addEventListener('DOMContentLoaded', () => {
         showScreen(profilerScreen);
     });
     
-    profilerNextBtn.addEventListener('click', async () => {
-        showScreen(chatScreen);
-        showLoading(true);
-        conversationHistory = [];
-        const aiResponse = await fetchFromAI();
-        showLoading(false);
-        if (aiResponse) {
-            conversationHistory.push({ role: 'model', parts: aiResponse.text });
-            displayAIResponse(aiResponse);
-        }
-    });
+    profilerNextBtn.addEventListener('click', generateAccurateRecommendations);
 
     movieSearchInput.addEventListener('keyup', (event) => {
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(() => {
             searchMovies(event.target.value);
-        }, 500); // Espera 500ms após o usuário parar de digitar
+        }, 300); // Espera 300ms (mais rápido)
     });
     
-    // Adiciona listener para remover filmes selecionados (usando delegação de eventos)
     selectedMoviesContainer.addEventListener('click', (event) => {
         if (event.target.classList.contains('remove-movie')) {
             const movieId = parseInt(event.target.dataset.movieId);
             removeMovie(movieId);
         }
-    });
-
-    sendBtn.addEventListener('click', () => handleUserInput(userInput.value));
-    userInput.addEventListener('keyup', (event) => {
-        if (event.key === 'Enter') handleUserInput(userInput.value);
     });
 
 });

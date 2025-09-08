@@ -237,3 +237,36 @@ body {
     transform: none;
     box-shadow: none;
 }
+
+
+.action-buttons {
+    display: flex;
+    gap: 15px;
+    margin-top: 30px;
+}
+
+.secondary-action-btn {
+    background: none;
+    border: 1px solid var(--text-color-secondary);
+    color: var(--text-color-secondary);
+    padding: 15px 30px;
+    border-radius: 50px;
+    font-size: 1.1em;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.secondary-action-btn:hover {
+    background-color: var(--text-color-secondary);
+    color: var(--background-color);
+}
+
+.main-action-btn:disabled, .secondary-action-btn:disabled {
+    background: #333;
+    border-color: #333;
+    color: #666;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}

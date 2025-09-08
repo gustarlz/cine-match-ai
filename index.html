@@ -50,11 +50,23 @@
         </div>
 
         <!-- TELA DE RESULTADO -->
-        <div id="result-screen" class="screen"></div>
-    </main>
-    <div id="loading-overlay">
-        <div class="spinner"></div>
-    </div>
-    <script src="script.js"></script>
-</body>
-</html>
+        <div id="result-screen" class="screen">
+    <!-- O conteúdo será injetado pelo JavaScript aqui -->
+    <!-- Este é o template que o JS vai usar -->
+    <template id="result-template">
+        <div class="result-content">
+            <div class="result-poster">
+                <img src="" alt="Pôster do Filme">
+            </div>
+            <div class="result-details">
+                <h2></h2>
+                <p></p>
+                <div id="trailer-container"></div>
+                <div class="action-buttons">
+                    <button class="main-action-btn" id="generate-another-btn">Gerar Outra</button>
+                    <button class="secondary-action-btn" onclick="location.reload()">Recomeçar</button>
+                </div>
+            </div>
+        </div>
+    </template>
+</div>
