@@ -39,13 +39,20 @@ export default async function handler(req, res) {
     `;
 
     const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+const response = await result.response;
+let text = response.text();
 
-    // Tenta parsear o JSON da resposta da IA
-    const jsonResponse = JSON.parse(text);
-    
-    res.status(200).json(jsonResponse);
+// Tenta limpar a resposta da IA para extrair apenas o JSON
+if (text.includes('```json')) {
+  text = text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1);
+} else if (text.startsWith('{') === false) {
+  text = '{' + text.substring(text.indexOf('"type"'));
+}
+
+// Tenta parsear o JSON limpo
+const jsonResponse = JSON.parse(text);
+
+res.status(200).json(jsonResponse);
 
   } catch (error) {
     console.error(error);
