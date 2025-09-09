@@ -15,7 +15,7 @@
 </p>
 
 <h2 align="center">
-  <a href="https://cine-match-o1oc3hawp-gustavo-rosas-projects-c2c1e6dc.vercel.app//"><strong>Acesse a demonstração ao vivo!</strong></a>
+  <a href="https://cine-match-ai.vercel.app/"><strong>Acesse a demonstração ao vivo!</strong></a>
 </h2>
 
 <br>
